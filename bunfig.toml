@@ -5,4 +5,4 @@ preload = ["./tests/setup.ts"]
 coverage = true
 coverageReporter = ["text", "lcov"]
 coverageDir = "coverage"
-coverageThreshold = { lines = 0.85, functions = 0.85 }
+coverageThreshold = { lines = 0.95, functions = 0.95 }

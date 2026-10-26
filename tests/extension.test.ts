@@ -31,6 +31,15 @@ beforeEach(() => {
 		[`/v1/files/${KEY}/component_sets`]: () => ({ meta: { component_sets: [{ node_id: "9:8", key: "k2", name: "Buttons" }] } }),
 		"/v1/teams/7/components": () => ({ meta: { components: [{ node_id: "1:1", key: "t1", name: "TeamComp", file_key: KEY }] } }),
 		"/v1/teams/7/component_sets": () => ({ meta: { component_sets: [] } }),
+		[`/v1/files/${KEY}/meta`]: () => ({ file: { name: "Kit", folder_name: "F", creator: { handle: "c" }, last_touched_by: { handle: "l" }, last_touched_at: "t", editorType: "figma", link_access: "view" } }),
+		[`/v1/files/${KEY}/variables/published`]: () => ({ meta: { variableCollections: { c: { id: "c", name: "Pub" } }, variables: { v: { variableCollectionId: "c", name: "x/y", resolvedType: "COLOR" } } } }),
+		"/v1/components/": () => ({ meta: { name: "Btn", node_id: "1:1", file_key: KEY, description: "d" } }),
+		"/v1/component_sets/": () => ({ meta: { name: "Btns", node_id: "1:1", file_key: KEY } }),
+		"/v1/styles/": () => ({ meta: { name: "S", style_type: "FILL", node_id: "1:1", file_key: KEY, description: "desc" } }),
+		"/v1/teams/7/styles": () => ({ meta: { styles: [{ style_type: "FILL", name: "Brand", key: "k", file_key: KEY, node_id: "1:1", description: "x" }, { style_type: "TEXT", name: "Other", key: "k2", file_key: KEY, node_id: "1:2" }] } }),
+		[`/v1/files/${KEY}/dev_resources`]: () => ({ dev_resources: [{ node_id: "1:2", name: "PR", url: "https://gh/1", id: "d1" }] }),
+		"/v1/dev_resources": () => ({ links_created: [{ id: "d2" }] }),
+		[`/v1/files/${KEY}/comments/c1`]: () => ({}),
 		[`/v1/files/${KEY}/versions`]: () => ({ versions: [{ id: "v1", created_at: "d", user: { handle: "u" }, label: "L", description: "D" }] }),
 		[`/v1/files/${KEY}/images`]: () => ({ meta: { images: { abc: "https://img.test/abc.png" } } }),
 		"/v1/projects/p1/files": () => ({ name: "Proj", files: [{ key: KEY, name: "Kit", last_modified: "t" }] }),
@@ -53,11 +62,14 @@ const run = (name: string, params: any, cwd = tmpdir()) => tools[name].execute("
 const txt = (r: any) => r.content[0].text as string;
 
 test("registers all tools and the command", () => {
+	expect(Object.keys(tools).length).toBe(30);
 	expect(Object.keys(tools).sort()).toEqual([
+		"figma_create_dev_resource", "figma_delete_comment", "figma_export_tokens", "figma_get_component", "figma_get_dev_resources", "figma_get_file_meta",
+		"figma_get_prototype_flows", "figma_get_published_variables", "figma_get_style", "figma_get_team_styles", "figma_get_text", "figma_update_variables",
 		"figma_download_assets", "figma_download_image_fills", "figma_generate_code", "figma_get_comments", "figma_get_components", "figma_get_design_context",
 		"figma_get_file_structure", "figma_get_node_raw", "figma_get_screenshot", "figma_get_styles", "figma_get_variables", "figma_get_versions",
 		"figma_list_files", "figma_list_projects", "figma_parse_url", "figma_post_comment", "figma_search_nodes", "figma_whoami",
-	]);
+	].sort());
 	expect(commands.figma).toBeTruthy();
 });
 
@@ -191,4 +203,45 @@ test("/figma browse with several teams, back navigation, whole-file explore", as
 	seq.push("1", "P", "← back");
 	await commands.figma.handler("", ctx);
 	expect(notes.at(-1)).toBe("Project has no files.");
+});
+
+test("extra tools: meta, lookups, published, tokens, flows, text, dev resources, delete", async () => {
+	expect(txt(await run("figma_get_file_meta", { file: KEY }))).toContain("last touched by l");
+	expect(txt(await run("figma_get_component", { key: "abc" }))).toContain("Btn (1:1)");
+	expect(txt(await run("figma_get_component", { key: "abc", kind: "component_set" }))).toContain("Btns");
+	expect(txt(await run("figma_get_style", { key: "abc" }))).toContain('FILL "S"');
+	const ts = txt(await run("figma_get_team_styles", { team_id: "7", query: "bra" }));
+	expect(ts).toContain("Brand");
+	expect(ts).not.toContain("Other");
+	expect(txt(await run("figma_get_published_variables", { file: KEY }))).toContain("- x/y [COLOR]");
+	expect(txt(await run("figma_get_dev_resources", { file: KEY, node_ids: ["1:2"] }))).toContain("https://gh/1");
+	expect(txt(await run("figma_create_dev_resource", { file: KEY, node_id: "1-2", name: "PR", url: "u" }))).toContain("d2");
+	expect(JSON.parse(calls.at(-1)!.init!.body as string).dev_resources[0].node_id).toBe("1:2");
+	expect(txt(await run("figma_delete_comment", { file: KEY, comment_id: "c1" }))).toContain("Deleted");
+	expect(calls.at(-1)!.init!.method).toBe("DELETE");
+	const t = txt(await run("figma_get_text", { file: KEY, node_ids: ["1:2"] }));
+	expect(t).toContain('#1:3 [Card] (20px) "Hello <World>"');
+	await expect(run("figma_get_text", { file: KEY })).rejects.toThrow(/No node id/);
+	expect(txt(await run("figma_get_prototype_flows", { file: KEY, page: "page" }))).toContain("(none)");
+	expect(txt(await run("figma_generate_code", { file: KEY, node_id: "1:2", framework: "compose" }))).toContain("import androidx.compose.foundation.layout.Column");
+});
+
+test("export tokens: variables, styles fallback, errors", async () => {
+	const css = txt(await run("figma_export_tokens", { file: KEY }));
+	expect(css).toContain("1 tokens from variables");
+	expect(css).toContain("--brand-primary: #ff0000;");
+	expect(txt(await run("figma_export_tokens", { file: KEY, format: "json" }))).toContain('"brand"');
+	expect(txt(await run("figma_export_tokens", { file: KEY, format: "tailwind", selector: ".t" }))).toContain("theme: { extend");
+	const st = txt(await run("figma_export_tokens", { file: KEY, source: "styles" }));
+	expect(st).toContain("from styles");
+	expect(st).toContain("--brand: #ff0000;");
+	// variables endpoint forbidden -> auto falls back to styles; explicit variables source throws
+	const K2 = "ZzZ123xyz90";
+	globalThis.fetch = mockFetch({
+		[`/v1/files/${K2}/variables/local`]: () => new Response("{}", { status: 403 }),
+		[`/v1/files/${K2}/styles`]: () => ({ meta: { styles: [] } }),
+	}).fn as any;
+	await expect(run("figma_export_tokens", { file: K2, source: "variables" })).rejects.toThrow(/403/);
+	expect(txt(await run("figma_export_tokens", { file: K2 }))).toContain("No tokens found");
+	await expect(run("figma_update_variables", { file: K2, body: {} })).rejects.toThrow();
 });

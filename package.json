@@ -1,14 +1,17 @@
 {
   "name": "pi-figma-kit",
   "version": "0.1.0",
-  "description": "Pi extension: Figma tools (design context, code generation, screenshots, assets, variables, comments, project browser) over the Figma REST API.",
+  "description": "Pi extension: 30 Figma tools (design context, HTML/React/Tailwind/Compose codegen, screenshots, assets, design tokens, prototype flows, comments) and a /figma project browser, over the Figma REST API.",
   "keywords": [
     "pi-package",
     "pi-extension",
     "figma",
-    "mcp",
     "design",
-    "codegen"
+    "design-tokens",
+    "codegen",
+    "compose",
+    "tailwind",
+    "mcp"
   ],
   "license": "MIT",
   "author": "sorinirimies",

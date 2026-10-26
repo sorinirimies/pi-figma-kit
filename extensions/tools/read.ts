@@ -2,6 +2,7 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { type Framework, generate } from "../design/codegen.ts";
+import { generateCompose } from "../design/compose.ts";
 import { type DNode, collectAssets, countNodes, outline, simplify } from "../design/simplify.ts";
 import { type Ctx, FILE, NODE_IDS, fetchNodes, nodeUrl, target, text } from "./util.ts";
 
@@ -76,12 +77,12 @@ export function readTools({ client }: Ctx) {
 		name: "figma_generate_code",
 		label: "Figma: generate code",
 		description:
-			"Generate a code scaffold for a Figma node: HTML+CSS, React (JSX + CSS), or Tailwind (arbitrary-value classes). Positions, flex layout, colors, typography, borders, shadows are translated; adapt it to the project's design system/components afterwards. Icons become <img> refs to be exported via figma_download_assets.",
+			"Generate a code scaffold for a Figma node: HTML+CSS, React (JSX + CSS), Tailwind (arbitrary-value classes), or Jetpack Compose (Kotlin). Positions, flex layout, colors, typography, borders, shadows are translated; adapt it to the project's design system/components afterwards. Icons become <img> refs to be exported via figma_download_assets.",
 		promptSnippet: "Generate HTML/React/Tailwind scaffold code from a Figma node",
 		parameters: Type.Object({
 			file: FILE,
 			node_id: Type.Optional(Type.String({ description: "Node id (defaults to the URL's node-id)" })),
-			framework: Type.Optional(Type.Union([Type.Literal("html"), Type.Literal("react"), Type.Literal("tailwind")], { description: "default: react" })),
+			framework: Type.Optional(Type.Union([Type.Literal("html"), Type.Literal("react"), Type.Literal("tailwind"), Type.Literal("compose")], { description: "default: react; compose = Jetpack Compose (Kotlin)" })),
 			depth: DEPTH,
 			max_nodes: MAX_NODES,
 			assets_dir: Type.Optional(Type.String({ description: "Path prefix for asset references (default ./assets)" })),
@@ -93,8 +94,12 @@ export function readTools({ client }: Ctx) {
 			const r = await fetchNodes(client, ref.key, [ids[0]!]);
 			if (!r.docs[0]) throw new Error(`Node ${ids[0]} not found`);
 			const tree = simplify(r.docs[0], { depth: p.depth, maxNodes: p.max_nodes, components: r.components, styles: r.styles });
-			const fw = (p.framework ?? "react") as Framework;
-			const out = generate(tree, { framework: fw, assetsDir: p.assets_dir, componentName: p.component_name });
+			const fw = p.framework ?? "react";
+			if (fw === "compose") {
+				const k = generateCompose(tree, p.component_name);
+				return text(`## compose (${countNodes(tree)} nodes)\n\`\`\`kotlin\n${k.imports.map((i) => `import ${i}`).join("\n")}\n\n${k.code}\`\`\`${assetHints(ref.key, [tree])}\n\nNote: R.drawable.* names match the exported asset file names (svg → vector drawable via Android Studio import).`, { framework: fw });
+			}
+			const out = generate(tree, { framework: fw as Framework, assetsDir: p.assets_dir, componentName: p.component_name });
 			const parts = [`## ${fw} (${countNodes(tree)} nodes)`, "```" + (fw === "html" ? "html" : "tsx"), out.code, "```"];
 			if (out.css) parts.push("## CSS", "```css", out.css, "```");
 			return text(parts.join("\n") + assetHints(ref.key, [tree]) + "\n\nNote: `url(./assets/<ref>.png)` backgrounds correspond to image fills; svg <img> srcs to icon exports.", { framework: fw });

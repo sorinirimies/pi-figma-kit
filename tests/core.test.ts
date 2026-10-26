@@ -61,3 +61,19 @@ describe("client", () => {
 		expect(m.calls[0]!.init!.body).toBe('{"a":1}');
 	});
 });
+
+describe("client extras", () => {
+	test("default sleep on a short 429, download ok/fail, empty body", async () => {
+		let n = 0;
+		const m = mockFetch({ "/v1/me": () => (n++ ? { ok: 1 } : new Response("{}", { status: 429, headers: { "retry-after": "0" } })), "/v1/empty": () => new Response("", { status: 200 }), "/img": () => new Response(new Uint8Array([1, 2]), { headers: { "content-type": "image/png" } }) });
+		const c = new FigmaClient({ getToken: () => "t", fetch: m.fn, baseUrl: () => "https://api.example.test/" });
+		expect(await c.get("/v1/me")).toEqual({ ok: 1 });
+		expect(await c.request("DELETE", "/v1/empty")).toEqual({});
+		expect(m.calls[0]!.url.origin).toBe("https://api.example.test");
+		const d = await c.download("https://api.example.test/img");
+		expect([...d.bytes]).toEqual([1, 2]);
+		expect(d.mime).toBe("image/png");
+		await expect(c.download("https://api.example.test/missing")).rejects.toThrow(/Download failed \(404\)/);
+		c.clearCache();
+	});
+});

@@ -67,7 +67,8 @@ export class FigmaClient {
 				throw new FigmaError(`Figma rate limit hit; retry after ${wait}s.`, 429);
 			}
 			if (!res.ok) throw new FigmaError(await explain(res), res.status);
-			const v = (await res.json()) as T;
+			const raw = await res.text();
+			const v = (raw ? JSON.parse(raw) : {}) as T;
 			if (method === "GET" && ttl > 0) this.cache.set(ck, { t: Date.now(), v });
 			return v;
 		}

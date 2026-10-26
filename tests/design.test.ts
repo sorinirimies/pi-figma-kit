@@ -113,3 +113,20 @@ describe("css extras", () => {
 		expect(nodeCss({ type: "RECTANGLE", strokes: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 } }], strokeWeight: 2, strokeAlign: "OUTSIDE", cornerRadius: 3 }).outline).toBe("2px solid #000000");
 	});
 });
+
+describe("codegen extras", () => {
+	test("empty div, tailwind runs, braces in react text", () => {
+		const t: any = { id: "1", name: "Root 1", type: "FRAME", css: {}, children: [
+			{ id: "2", name: "Empty", type: "FRAME", css: { "border-radius": "50%" } },
+			{ id: "3", name: "Rich", type: "TEXT", css: {}, text: "a{b}\nc", runs: [{ text: "a", css: { "font-weight": "700" } }, { text: "{b}", css: {} }] },
+		] };
+		const tw = generate(t, { framework: "tailwind" }).code;
+		expect(tw).toContain('<div className="rounded-full"></div>');
+		expect(tw).toContain('<span className="[font-weight:700]">a</span>');
+		const r = generate(t, { framework: "react" });
+		expect(r.code).toContain("{'{'}b{'}'}");
+		expect(r.css).toContain("rich-run");
+		const h = generate({ ...t, children: [{ id: "3", name: "T", type: "TEXT", css: {}, text: "a\nb" }] }, { framework: "html" });
+		expect(h.code).toContain("a<br>b");
+	});
+});
