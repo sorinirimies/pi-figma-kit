@@ -3,6 +3,16 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.2.1](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.2.1) — 2026-10-26
+
+
+### 📚 Docs
+
+- README with demo recordings (VHS), fake Figma + scripted model; feat: /figma completions with descriptions ([`712deb4`](https://github.com/sorinirimies/pi-figma-kit/commit/712deb4bfd30faf013b3c36c02af4bb0fad03216))
+
+### 🧪 Tests
+
+- Seeded fuzz tests (found and fixed 2 crashes), more coverage; ci: nightly fuzz workflow ([`f2699ab`](https://github.com/sorinirimies/pi-figma-kit/commit/f2699ab8b2a96bb5aeb5c21a64944b1d930f4644))
 ## [0.2.0](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.2.0) — 2026-10-26
 
 
