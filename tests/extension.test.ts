@@ -124,7 +124,7 @@ test("/figma command", async () => {
 	expect(sent[0]).toContain("make it blue");
 	expect(notes.some((n) => n.includes("figma: Not a Figma URL"))).toBe(true);
 	expect(notes.some((n) => n.includes("Unknown subcommand"))).toBe(true);
-	expect(commands.figma.getArgumentCompletions("logi")).toEqual([{ value: "login", label: "login" }]);
+	expect(commands.figma.getArgumentCompletions("logi")).toEqual([{ value: "login", label: "login", description: "save a personal access token" }]);
 });
 
 test("/figma browse walks team -> project -> file -> frame", async () => {

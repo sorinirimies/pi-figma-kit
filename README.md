@@ -9,6 +9,19 @@ Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **33 `figma_*
 
 It talks to the **Figma REST API** directly: no desktop app, no separate MCP server process, nothing to keep running. Works with any file you can open, including ones you only have view access to. If the Figma desktop app is running, an optional **bridge** adds live selection, Dev Mode and Code Connect.
 
+<img src="examples/vhs/generated/overview.gif" alt="pi-figma-kit: /figma whoami, then the agent explores the file, generates Compose code and exports design tokens" width="900">
+
+## Features
+
+- **30 REST tools + 3 desktop tools:** explore files, read designs, render and export, tokens, flows, comments, dev resources.
+- **Design → code:** a compact CSS-annotated tree and generators for **HTML, React, Tailwind and Jetpack Compose**.
+- **Design tokens:** variables (multi-mode, aliases) or styles as **CSS custom properties, JSON or a Tailwind theme**.
+- **Sees the design:** renders frames and shows them to the model inline; exports SVG, PNG, JPG and PDF into your project.
+- **`/figma` browser:** team → project → file → frame, then straight to the agent.
+- **Desktop bridge (optional):** the frame you have selected in Figma, Dev Mode snippets and Code Connect.
+- **Safe by default:** read-only unless you ask; token in a `600` file; **zero runtime dependencies**; no telemetry.
+- **Tested:** 95%+ coverage gate, seeded fuzzing, dependency audit.
+
 - [Install](#install) · [Authentication](#authentication) · [How it works](#how-it-works) · [Tools](#tools) · [`/figma` command](#figma-command) · [Workflows](#workflows) · [Design translation](#design-translation) · [Limits](#limits) · [Security](#security-notes) · [Development](#development) · [Releases](#releases)
 
 ## Install
@@ -217,6 +230,38 @@ What the deterministic translator covers:
 
 Generated code is a **scaffold**: structure, spacing, colours and typography are faithful, but you (or the agent) still map it onto your design system's components.
 
+## Previews
+
+Recorded from a real pi with only this plugin loaded, against a **fake Figma** and a scripted model (no token, no network, no real files).
+
+**Browse** (`/figma`): team, project, file, frame, then the agent takes over:
+
+![Browsing teams, projects, files and frames](examples/vhs/generated/browse.gif)
+
+**Design context** (`figma_get_design_context`): a compact tree with layout, fills, gradients, text runs, instance and style names:
+
+![The agent inspects the Welcome frame](examples/vhs/generated/design.gif)
+
+**Code** (`figma_generate_code`, `html` / `react` / `tailwind` / `compose`): here Jetpack Compose with imports and modifiers:
+
+![Jetpack Compose generated from a frame](examples/vhs/generated/compose.gif)
+
+**Design tokens** (`figma_export_tokens`): Light and Dark modes, aliases kept as `var()`:
+
+![Design tokens exported as CSS custom properties](examples/vhs/generated/tokens.gif)
+
+**Explore** (`figma_get_file_structure`, `figma_get_prototype_flows`, `figma_get_comments`):
+
+![File structure, prototype flows and comments](examples/vhs/generated/explore.gif)
+
+**Desktop bridge** (`figma_desktop_selection`): what you have selected in the Figma app right now, with Code Connect:
+
+![The selected frame via the Figma desktop app](examples/vhs/generated/desktop.gif)
+
+**Tab-completion** uses pi's own menu, with a description for every option:
+
+![Autocomplete for /figma](examples/vhs/generated/completion.gif)
+
 ## Limits
 
 - The REST tools have no live selection, Code Connect or Dev Mode snippets. Pass links with `node-id`, or use the [desktop bridge](#figma-desktop-bridge-optional) for those.
@@ -224,6 +269,17 @@ Generated code is a **scaffold**: structure, spacing, colours and typography are
 - Figma rate-limits per token. Short `429`s are retried; long ones are reported with the wait time.
 - Rendered images come from Figma's servers and expire; they are downloaded immediately.
 - Gradients/effects that CSS or Compose can't express exactly are approximated (Compose gradients are left as a `TODO` comment with the CSS value).
+
+## Demo recordings
+
+The GIFs above live in [`examples/vhs/generated/`](examples/vhs/generated) and are stored with **Git LFS** (`git lfs install` once). They are recorded with [VHS](https://github.com/charmbracelet/vhs) from a **real pi** that loads only this extension, against `examples/vhs/mock-figma.ts` (a fake of the REST API and of the desktop MCP server, one fictional file) and `examples/vhs/mock-llm.ts` (a scripted model that calls the `figma_*` tools). `HOME` and the pi agent dir are redirected to `/tmp`, so nothing real is recorded.
+
+```sh
+just vhs-all          # every tape (examples/vhs/*.tape): needs vhs, ttyd, ffmpeg, pi, bun, python3
+just vhs-tape compose # one tape
+just vhs-list         # list the tapes
+just demo             # try it yourself in a real pi against the fake Figma
+```
 
 ## Security notes
 
@@ -239,10 +295,16 @@ bun install
 just check          # typecheck + tests + pack check + nushell tests (what CI runs)
 just test           # bun test only (with coverage)
 just coverage       # tests + a coverage table
+just fuzz           # randomised robustness tests: just fuzz [iterations] [seed]
+just audit          # bun audit: known vulnerabilities in dependencies
 just push-all       # push main to every configured remote; `just --list` shows pull-all, push-tags-all, release-all, the *-force and sync-gitea-* variants
 ```
 
 **Coverage:** every `bun test` collects coverage (`bunfig.toml`) and **fails below 95% lines / 95% functions**. All Figma calls are mocked (`tests/fixtures.ts`), so tests need no token or network.
+
+**Fuzzing:** `tests/fuzz.test.ts` throws seeded random Figma nodes, variables, URLs and MCP replies at the translators and clients (they must never throw). A failure prints `FUZZ_SEED=…` to replay it. A short run is part of `bun test`; the **Fuzz** workflow runs 200 000 iterations nightly.
+
+**Audit:** the **Security** workflow runs `bun audit` nightly and on every dependency change.
 
 To add a tool: write it in the matching file under `extensions/tools/` with `defineTool`, add it to that file's returned list, and add a test in `tests/extension.test.ts` (the first test pins the tool list).
 
@@ -253,6 +315,8 @@ CI scripts are [nushell](https://www.nushell.sh) (`scripts/`), the same ones loc
 | Workflow | When | What |
 |---|---|---|
 | **CI** | push / PR | quality gate (typecheck, tests with coverage, pack check, nushell tests) |
+| **Fuzz** | nightly, and when extensions change | 200 000 seeded iterations per property |
+| **Security** | nightly, and when dependencies change | `bun audit` |
 | **Nightly Dependency Update** | every night | `bun update` within ranges, verify, commit `chore(deps)`, then build, tag and publish a patch when something changed |
 | **Release** | tag `vX.Y.Z` | validates the tag against `package.json`, runs the gate, `npm publish` (idempotent, with provenance), creates the release |
 
@@ -261,6 +325,17 @@ Manual release: `just release patch` (or `minor` / `major` / `X.Y.Z`); `just rel
 **Secrets:** `NPM_TOKEN` (granular access token with publish rights and "bypass 2FA"). Optional: `GH_PAT`, `GITEA_TOKEN`.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org); the changelog is generated by git-cliff.
+
+## Related plugins
+
+Small [pi](https://github.com/earendil-works/pi-coding-agent) extensions by the same author:
+
+| Plugin | What it does |
+|---|---|
+| [**pi-tokenburn**](https://github.com/sorinirimies/pi-tokenburn) | Live token and cost counter in pi's footer, with charts and budgets |
+| [**pi-context-diet**](https://github.com/sorinirimies/pi-context-diet) | Drops stale tool results from the context when the prompt cache is cold |
+| [**pi-edit-first**](https://github.com/sorinirimies/pi-edit-first) | Steers the agent to targeted `edit` calls instead of whole-file rewrites |
+| [**pi-read-guard**](https://github.com/sorinirimies/pi-read-guard) | Blocks full reads of large files |
 
 ## License
 

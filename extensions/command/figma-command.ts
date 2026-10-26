@@ -25,9 +25,20 @@ export const USAGE = [
 
 export const parseTeamId = (s: string): string => /\/team\/(\d+)/.exec(s)?.[1] ?? s.trim();
 
+const SUBS: [string, string][] = [
+	["browse", "pick a team, project, file and frame (default)"],
+	["login", "save a personal access token"],
+	["logout", "remove the saved token"],
+	["whoami", "check the token and the desktop bridge"],
+	["team", "add a team id or URL to the browser"],
+	["teams", "list the configured teams"],
+	["open", "have the agent inspect a Figma link"],
+	["implement", "fetch a design and implement it here"],
+	["help", "show usage"],
+];
+
 export function completions(prefix: string) {
-	const subs = ["login", "logout", "whoami", "team", "teams", "open", "implement", "help"];
-	const items = subs.filter((s) => s.startsWith(prefix)).map((s) => ({ value: s, label: s }));
+	const items = SUBS.filter(([s]) => s.startsWith(prefix)).map(([s, d]) => ({ value: s, label: s, description: d }));
 	return items.length ? items : null;
 }
 
