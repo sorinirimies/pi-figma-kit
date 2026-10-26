@@ -260,3 +260,16 @@ test("desktop bridge uses FIGMA_MCP_URL", async () => {
 		delete process.env.FIGMA_MCP_URL;
 	}
 });
+
+test("/figma whoami: connected bridge and REST error", async () => {
+	const notes: string[] = [];
+	const ctx = { ui: { notify: (m: string) => notes.push(m) } } as any;
+	globalThis.fetch = (async (u: any, init: any) => {
+		if (String(u).includes("/v1/me")) return new Response("{}", { status: 403 });
+		const b = JSON.parse(init.body);
+		return b.id === undefined ? new Response(null, { status: 202 }) : Response.json({ jsonrpc: "2.0", id: b.id, result: { tools: [{ name: "a" }, { name: "b" }] } });
+	}) as any;
+	await commands.figma.handler("whoami", ctx);
+	expect(notes[0]).toContain("REST: ");
+	expect(notes[0]).toContain("Desktop bridge: connected, 2 tools");
+});
