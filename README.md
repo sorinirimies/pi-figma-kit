@@ -162,7 +162,8 @@ These talk to Figma's own MCP server running in the desktop app (default `http:/
 ```
 /figma                       interactive browser: team → project → file → frame, then sent to the agent
 /figma login <token>         save a token (checks it with /v1/me)
-/figma logout | whoami
+/figma logout
+/figma whoami                checks the REST token and whether the desktop bridge is reachable
 /figma team <id|url>         add a team to the browser
 /figma teams                 list configured teams
 /figma open <url>            the agent inspects and summarizes a link

@@ -1,12 +1,14 @@
 /** /figma command: login, whoami, team management, interactive browser (team → project → file → frame). */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { FigmaClient } from "../core/api.ts";
+import type { McpClient } from "../core/mcp.ts";
 import { type FigmaConfig, envToken, saveConfig } from "../core/config.ts";
 import { parseFigmaRef } from "../core/url.ts";
 
 export interface CommandHost {
 	pi: ExtensionAPI;
 	client: FigmaClient;
+	mcp: McpClient;
 	config: FigmaConfig;
 }
 
@@ -14,7 +16,7 @@ export const USAGE = [
 	"/figma                 interactive browser (team → project → file → frame)",
 	"/figma login <token>   save a personal access token",
 	"/figma logout          forget the saved token",
-	"/figma whoami          check the token",
+	"/figma whoami          check the token and the desktop bridge",
 	"/figma team <id|url>   add a team to the browser (id from figma.com/files/team/<ID>)",
 	"/figma teams           list configured teams",
 	"/figma open <url>      have the agent inspect a Figma link",
@@ -109,8 +111,12 @@ export async function runCommand(args: string, h: CommandHost, ctx: ExtensionCon
 			h.client.clearCache();
 			return ctx.ui.notify(envToken() ? "Saved token removed (FIGMA_ACCESS_TOKEN env is still set)." : "Logged out.", "info");
 		case "whoami": {
-			const me = await h.client.get("/v1/me");
-			return ctx.ui.notify(`${me.handle} <${me.email}>`, "info");
+			const rest = await h.client.get("/v1/me").then((me) => `REST: ${me.handle} <${me.email}>`, (e: Error) => `REST: ${e.message}`);
+			const desk = await h.mcp.listTools().then(
+				(t) => `Desktop bridge: connected, ${t.length} tools (${h.mcp.url})`,
+				() => `Desktop bridge: not reachable at ${h.mcp.url}. Optional: open the Figma app, Dev Mode → "Enable desktop MCP server" (live selection, Code Connect).`,
+			);
+			return ctx.ui.notify(`${rest}\n${desk}`, "info");
 		}
 		case "team":
 			if (!arg) return ctx.ui.notify("Usage: /figma team <id|url>", "warning");

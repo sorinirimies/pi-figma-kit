@@ -118,7 +118,8 @@ test("/figma command", async () => {
 	await commands.figma.handler("open nonsense", ctx);
 	await commands.figma.handler("bogus", ctx);
 	await commands.figma.handler("", ctx);
-	expect(notes[0]).toContain("me <m@x>");
+	expect(notes[0]).toContain("REST: me <m@x>");
+	expect(notes[0]).toContain("Desktop bridge: not reachable");
 	expect(notes[1]).toContain("42");
 	expect(sent[0]).toContain("make it blue");
 	expect(notes.some((n) => n.includes("figma: Not a Figma URL"))).toBe(true);

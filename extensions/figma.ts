@@ -39,7 +39,7 @@ export default function figmaExtension(pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			await ready;
 			try {
-				await runCommand(args, { pi, client, config }, ctx);
+				await runCommand(args, { pi, client, mcp, config }, ctx);
 			} catch (e) {
 				ctx.ui.notify(`figma: ${(e as Error).message}`, "error");
 			}
