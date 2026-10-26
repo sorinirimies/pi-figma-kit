@@ -273,3 +273,19 @@ test("/figma whoami: connected bridge and REST error", async () => {
 	expect(notes[0]).toContain("REST: ");
 	expect(notes[0]).toContain("Desktop bridge: connected, 2 tools");
 });
+
+test("coverage gaps: config file, assets not renderable, variables write, login check failure", async () => {
+	const { loadConfig, saveConfig } = await import("../extensions/core/config.ts");
+	await saveConfig({ token: "t", teamIds: ["1"], baseUrl: "http://b", desktopUrl: "http://d/mcp" });
+	expect(await loadConfig()).toEqual({ token: "t", teamIds: ["1"], baseUrl: "http://b", desktopUrl: "http://d/mcp" });
+	await Bun.write(join(process.env.PI_CODING_AGENT_DIR!, "figma.json"), JSON.stringify({ token: 1, teamIds: "x", baseUrl: 2, desktopUrl: 3 }));
+	expect(await loadConfig()).toEqual({ token: undefined, teamIds: [], baseUrl: undefined, desktopUrl: undefined });
+	const dir = mkdtempSync(join(tmpdir(), "figma-a-"));
+	expect(txt(await run("figma_download_assets", { file: KEY, assets: [{ node_id: "1:9", filename: "x" }], dir }))).toContain("not renderable");
+	globalThis.fetch = mockFetch({ [`/v1/files/${KEY}/variables`]: () => ({ meta: { ok: true } }) }).fn as any;
+	expect(txt(await run("figma_update_variables", { file: KEY, body: { variables: [] } }))).toContain("ok");
+	globalThis.fetch = mockFetch({ "/v1/me": () => new Response(JSON.stringify({ message: "bad" }), { status: 401 }) }).fn as any;
+	const notes: string[] = [];
+	await commands.figma.handler("login figd_x", { ui: { notify: (m: string) => notes.push(m) } } as any);
+	expect(notes.at(-1)).toContain("check failed: Figma API 401 (unauthorized: check your token): bad");
+});

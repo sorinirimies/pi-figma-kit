@@ -29,7 +29,8 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "audit": "bun audit",
-    "check": "nu scripts/ci/quality_gate.nu"
+    "check": "nu scripts/ci/quality_gate.nu",
+    "fuzz": "FUZZ_ITERS=20000 bun test tests/fuzz.test.ts --config=bunfig.fuzz.toml"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

@@ -63,3 +63,23 @@ describe("compose", () => {
 		expect(code).toContain("Box(");
 	});
 });
+
+describe("compose branches", () => {
+	const gen = (css: Record<string, string>, kids: any[] = []) => generateCompose({ id: "1", name: "R", type: "FRAME", css, children: kids } as any).code;
+	test("column flex child, paddings, arrangement variants", () => {
+		const col = gen({ "flex-direction": "column", "justify-content": "center", "align-items": "flex-end", padding: "4px 8px" }, [
+			{ id: "2", name: "A", type: "FRAME", css: { flex: "1 1 0", "align-self": "stretch", padding: "1px 2px 3px 4px", width: "10px", height: "5px" } },
+		]);
+		expect(col).toContain("verticalArrangement = Arrangement.Center");
+		expect(col).toContain("horizontalAlignment = Alignment.End");
+		expect(col).toContain(".padding(horizontal = 8.dp, vertical = 4.dp)");
+		expect(col).toContain(".padding(start = 4.dp, top = 1.dp, end = 2.dp, bottom = 3.dp)");
+		expect(col).toContain(".weight(1f)");
+		expect(col).toContain(".fillMaxWidth()");
+		expect(col).not.toContain(".width(10.dp)");
+		expect(gen({ "flex-direction": "row", gap: "6px" })).toContain("horizontalArrangement = Arrangement.spacedBy(6.dp)");
+		expect(gen({ "flex-direction": "row", gap: "6px", "justify-content": "flex-end" })).toContain("Arrangement.spacedBy(6.dp, Alignment.End)");
+		expect(gen({ "flex-direction": "column", gap: "6px", "justify-content": "flex-end" })).toContain("Alignment.Bottom");
+		expect(gen({ "border-radius": "4px 8px 4px 8px", background: "#ffffff", border: "1px solid #000000" })).toContain("RoundedCornerShape(4.dp, 8.dp, 4.dp, 8.dp)");
+	});
+});

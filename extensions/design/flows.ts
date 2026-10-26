@@ -19,11 +19,11 @@ export function collectFlows(doc: FNode): Flows {
 	const walk = (node: FNode, page: string) => {
 		names.set(node.id, node.name);
 		if (node.type === "CANVAS") for (const f of node.flowStartingPoints ?? []) starts.push({ name: f.name, id: f.nodeId, page: node.name });
-		for (const i of node.interactions ?? []) {
-			for (const a of i.actions ?? []) {
-				if (a?.destinationId) edges.push({ from: { id: node.id, name: node.name }, to: a.destinationId, trigger: i.trigger?.type ?? "ON_CLICK", action: a.navigation ?? a.type ?? "NODE" });
-				else if (a?.type === "URL") edges.push({ from: { id: node.id, name: node.name }, to: a.url, trigger: i.trigger?.type ?? "ON_CLICK", action: "URL" });
-				else if (a?.type === "BACK" || a?.type === "CLOSE") edges.push({ from: { id: node.id, name: node.name }, to: a.type, trigger: i.trigger?.type ?? "ON_CLICK", action: a.type });
+		for (const i of Array.isArray(node.interactions) ? node.interactions : []) {
+			for (const a of Array.isArray(i?.actions) ? i.actions : []) {
+				if (a?.destinationId) edges.push({ from: { id: node.id, name: node.name }, to: a.destinationId, trigger: i?.trigger?.type ?? "ON_CLICK", action: a.navigation ?? a.type ?? "NODE" });
+				else if (a?.type === "URL") edges.push({ from: { id: node.id, name: node.name }, to: a.url, trigger: i?.trigger?.type ?? "ON_CLICK", action: "URL" });
+				else if (a?.type === "BACK" || a?.type === "CLOSE") edges.push({ from: { id: node.id, name: node.name }, to: a.type, trigger: i?.trigger?.type ?? "ON_CLICK", action: a.type });
 			}
 		}
 		if (node.transitionNodeID && !node.interactions?.length) edges.push({ from: { id: node.id, name: node.name }, to: node.transitionNodeID, trigger: "ON_CLICK", action: "NAVIGATE" });

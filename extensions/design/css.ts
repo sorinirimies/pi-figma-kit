@@ -5,7 +5,8 @@ export type FNode = Record<string, any>;
 export const n = (v: number): string => String(Math.round(v * 100) / 100);
 export const px = (v: number): string => `${n(v)}px`;
 
-export function color(c: { r: number; g: number; b: number; a?: number }, opacity = 1): string {
+export function color(c: { r: number; g: number; b: number; a?: number } | null | undefined, opacity = 1): string {
+	if (!c) return "transparent";
 	const a = (c.a ?? 1) * opacity;
 	const h = (x: number) => Math.round(x * 255).toString(16).padStart(2, "0");
 	return a >= 0.995 ? `#${h(c.r)}${h(c.g)}${h(c.b)}` : `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${n(a)})`;

@@ -346,3 +346,7 @@ sync-all-gitea:
     done
     if [ -n "$failed" ]; then echo "⚠️  Failed to sync:$failed"; exit 1; fi
     echo "✅ Every configured Gitea instance force-synced with GitHub."
+
+# Randomised robustness tests: just fuzz [iterations] [seed]. A failure prints its seed.
+fuzz iters="20000" seed="": _check-bun
+    FUZZ_ITERS={{iters}} {{ if seed != "" { "FUZZ_SEED=" + seed } else { "" } }} bun test tests/fuzz.test.ts --config=bunfig.fuzz.toml
