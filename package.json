@@ -1,0 +1,26 @@
+{
+  "name": "pi-figma-mcp",
+  "version": "0.1.0",
+  "description": "Pi extension: Figma tools (design context, code generation, screenshots, assets, variables, comments, project browser) over the Figma REST API.",
+  "keywords": ["pi-package", "pi-extension", "figma", "mcp", "design", "codegen"],
+  "license": "MIT",
+  "author": "sorinirimies",
+  "files": ["extensions", "README.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./extensions/figma.ts"]
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^1.4.0",
+    "@earendil-works/pi-coding-agent": "^1.4.0",
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}
