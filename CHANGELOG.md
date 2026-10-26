@@ -10,6 +10,11 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 
 - Figma tools + /figma command for pi ([`cff6d07`](https://github.com/sorinirimies/pi-figma-kit/commit/cff6d0739a6240b36254a86544603a2f0df3949f))
 - Compose codegen, token export, prototype flows, text, dev resources, meta, lookups; full README ([`7c35b56`](https://github.com/sorinirimies/pi-figma-kit/commit/7c35b564ca19f25a1104423a8c4a5b52e9957a6d))
+- Bridge to the Figma desktop MCP server (selection, Dev Mode, Code Connect) ([`fe28955`](https://github.com/sorinirimies/pi-figma-kit/commit/fe28955abb2ee90af38def94c284f8d00b824713))
+
+### 📚 Docs
+
+- Changelog ([`7c291ce`](https://github.com/sorinirimies/pi-figma-kit/commit/7c291ced05a75b29c2ae176f69d091a9a5d97029))
 
 ### 🔧 Build & CI
 
