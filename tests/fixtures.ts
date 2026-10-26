@@ -25,7 +25,7 @@ export function mockFetch(routes: Record<string, (url: URL, init?: RequestInit) 
 	const fn = async (u: string, init?: RequestInit) => {
 		const url = new URL(u);
 		calls.push({ url, init });
-		const key = Object.keys(routes).find((k) => url.pathname === k || url.pathname.startsWith(k));
+		const key = Object.keys(routes).filter((k) => url.pathname === k || url.pathname.startsWith(k)).sort((a, b) => b.length - a.length)[0];
 		if (!key) return new Response(JSON.stringify({ err: "nope" }), { status: 404 });
 		const r = routes[key]!(url, init);
 		if (r instanceof Response) return r;

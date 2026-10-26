@@ -1,6 +1,6 @@
 # pi-figma-mcp
 
-Figma for [pi](https://github.com/earendil-works/pi): a set of `figma_*` tools plus a `/figma` command, built on the Figma REST API. Fetch designs, turn them into code, look at them, export assets, read design tokens, and browse your projects, all from pi. Same layout as `pi-tokenburn` / `pi-context-diet` (a pi package, no server process).
+Figma for [pi](https://github.com/earendil-works/pi): a set of `figma_*` tools plus a `/figma` command, built on the Figma REST API. Fetch designs, turn them into code, look at them, export assets, read design tokens, and browse your projects, all from pi. A pi package, no server process.
 
 ## Install
 

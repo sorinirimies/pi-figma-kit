@@ -92,3 +92,24 @@ describe("codegen", () => {
 		expect(r.code).toContain("[gap:8px]");
 	});
 });
+
+describe("css extras", () => {
+	test("gradients, image fill, strokes, effects, transforms", () => {
+		const stops = [{ position: 0, color: { r: 0, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 1, g: 1, b: 1, a: 1 } }];
+		expect(paintLayer({ type: "GRADIENT_RADIAL", gradientStops: stops })).toStartWith("radial-gradient(circle");
+		expect(paintLayer({ type: "GRADIENT_ANGULAR", gradientStops: stops })).toStartWith("conic-gradient");
+		expect(paintLayer({ type: "VIDEO" })).toBeUndefined();
+		expect(fillCss([{ type: "IMAGE", imageRef: "r", scaleMode: "FIT" }])["background-size"]).toBe("contain");
+		expect(fillCss([{ type: "IMAGE", imageRef: "r", scaleMode: "TILE" }])["background-size"]).toBe("auto");
+		expect(fillCss([{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, visible: false }])).toEqual({});
+		const css = nodeCss({
+			type: "ELLIPSE", absoluteBoundingBox: { x: 0, y: 0, width: 4, height: 4 }, opacity: 0.5, rotation: Math.PI / 2, blendMode: "MULTIPLY", visible: false,
+			strokes: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 } }], individualStrokeWeights: { top: 1, right: 0, bottom: 2, left: 0 }, strokeDashes: [2],
+			effects: [{ type: "LAYER_BLUR", radius: 8 }, { type: "BACKGROUND_BLUR", radius: 4 }, { type: "INNER_SHADOW", radius: 1, color: { r: 0, g: 0, b: 0 } }],
+			rectangleCornerRadii: [1, 2, 3, 4],
+		});
+		expect(css).toMatchObject({ "border-top": "1px dashed #000000", "border-bottom": "2px dashed #000000", filter: "blur(4px)", "backdrop-filter": "blur(2px)", opacity: "0.5", "mix-blend-mode": "multiply", display: "none", "border-radius": "1px 2px 3px 4px", transform: "rotate(-90deg)" });
+		expect(css["box-shadow"]).toStartWith("inset");
+		expect(nodeCss({ type: "RECTANGLE", strokes: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 } }], strokeWeight: 2, strokeAlign: "OUTSIDE", cornerRadius: 3 }).outline).toBe("2px solid #000000");
+	});
+});

@@ -21,11 +21,19 @@ beforeEach(() => {
 	sent = [];
 	const m = mockFetch({
 		"/v1/me": () => ({ handle: "me", email: "m@x" }),
-		[`/v1/files/${KEY}/nodes`]: (u) => ({ nodes: Object.fromEntries(u.searchParams.get("ids")!.split(",").map((id) => [id, id === "1:2" ? { document: card, components, styles } : null])) }),
+		[`/v1/files/${KEY}/nodes`]: (u) => ({ nodes: Object.fromEntries(u.searchParams.get("ids")!.split(",").map((id) => [id, id === "1:2" ? { document: card, components, styles } : id === "s1" ? { document: { id: "s1", fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }] } } : id === "s2" ? { document: { id: "s2", style: { fontSize: 12 } } } : id === "s3" ? { document: { id: "s3", effects: [] } } : null])) }),
 		[`/v1/files/${KEY}/comments`]: (_u, init) => (init?.method === "POST" ? { id: "c9" } : { comments: [{ id: "c1", user: { handle: "bob" }, message: "fix", client_meta: { node_id: "1:2" } }, { id: "c2", parent_id: "c1", user: { handle: "al" }, message: "done" }] }),
 		[`/v1/files/${KEY}/variables/local`]: () => ({ meta: { variableCollections: { c: { name: "Colors", modes: [{ modeId: "m1", name: "Light" }], variableIds: ["v"] } }, variables: { v: { name: "brand/primary", resolvedType: "COLOR", valuesByMode: { m1: { r: 1, g: 0, b: 0, a: 1 } } } } } }),
 		[`/v1/files/${KEY}`]: () => ({ name: "Kit", version: "1", lastModified: "now", components: {}, styles: {}, document: { id: "0:0", type: "DOCUMENT", name: "Document", children: [{ id: "0:1", type: "CANVAS", name: "Page 1", children: [card] }] } }),
 		"/v1/images/": () => ({ images: { "1:2": "https://img.test/a.png", "1:9": null } }),
+		[`/v1/files/${KEY}/styles`]: () => ({ meta: { styles: [{ node_id: "s1", style_type: "FILL", name: "Brand" }, { node_id: "s2", style_type: "TEXT", name: "H1" }, { node_id: "s3", style_type: "EFFECT", name: "Shadow" }] } }),
+		[`/v1/files/${KEY}/components`]: () => ({ meta: { components: [{ node_id: "9:9", key: "k1", name: "Button", description: "primary", containing_frame: { name: "Kit" } }] } }),
+		[`/v1/files/${KEY}/component_sets`]: () => ({ meta: { component_sets: [{ node_id: "9:8", key: "k2", name: "Buttons" }] } }),
+		"/v1/teams/7/components": () => ({ meta: { components: [{ node_id: "1:1", key: "t1", name: "TeamComp", file_key: KEY }] } }),
+		"/v1/teams/7/component_sets": () => ({ meta: { component_sets: [] } }),
+		[`/v1/files/${KEY}/versions`]: () => ({ versions: [{ id: "v1", created_at: "d", user: { handle: "u" }, label: "L", description: "D" }] }),
+		[`/v1/files/${KEY}/images`]: () => ({ meta: { images: { abc: "https://img.test/abc.png" } } }),
+		"/v1/projects/p1/files": () => ({ name: "Proj", files: [{ key: KEY, name: "Kit", last_modified: "t" }] }),
 		"/v1/teams/7/projects": () => ({ name: "T", projects: [{ id: "p1", name: "Proj" }] }),
 		"https://img.test": () => new Response(png),
 	});
@@ -119,4 +127,68 @@ test("/figma browse walks team -> project -> file -> frame", async () => {
 	const ctx = { ui: { notify() {}, input: async () => "https://www.figma.com/files/team/7/x", select: async (_t: string, opts: string[]) => (typeof answers[step] === "number" ? opts[answers[step++] as number] : answers[step++]) } } as any;
 	await commands.figma.handler("", ctx);
 	expect(sent[0]).toContain(`${KEY}?node-id=1-2`);
+});
+
+test("styles, components, versions, fills, raw, files", async () => {
+	const st = txt(await run("figma_get_styles", { file: KEY }));
+	expect(st).toContain('FILL "Brand" #s1 { background: #ff0000 }');
+	expect(st).toContain("font-size: 12px");
+	expect(txt(await run("figma_get_components", { file: KEY, query: "button" }))).toContain('SET "Buttons"');
+	expect(txt(await run("figma_get_components", { team_id: "7" }))).toContain("TeamComp");
+	await expect(run("figma_get_components", {})).rejects.toThrow(/file or team_id/);
+	expect(txt(await run("figma_get_versions", { file: KEY }))).toContain("v1");
+	expect(txt(await run("figma_list_files", { project_id: "p1" }))).toContain(`key=${KEY}`);
+	expect(txt(await run("figma_get_node_raw", { file: KEY, node_ids: ["1:2"] }))).toContain('"1:2"');
+	expect(txt(await run("figma_get_variables", { file: KEY, filter: "nomatch" }))).toContain("Colors");
+	expect(txt(await run("figma_get_comments", { file: KEY, include_resolved: true }))).toContain("bob");
+	expect(txt(await run("figma_post_comment", { file: KEY, message: "re", reply_to: "c1" }))).toContain("c9");
+	expect(txt(await run("figma_download_image_fills", { file: KEY }))).toContain("abc");
+	const dir = mkdtempSync(join(tmpdir(), "figma-t-"));
+	const f = txt(await run("figma_download_image_fills", { file: KEY, refs: ["abc", "nope"], dir }));
+	expect(f).toContain("abc.png");
+	expect(f).toContain("nope: not found");
+	expect(txt(await run("figma_get_file_structure", { file: KEY, depth: 3 }))).toContain("Kit");
+});
+
+test("/figma login/logout/usage paths", async () => {
+	const notes: string[] = [];
+	const ctx = { ui: { notify: (m: string) => notes.push(m), select: async () => undefined, input: async () => undefined } } as any;
+	delete process.env.FIGMA_ACCESS_TOKEN;
+	await commands.figma.handler("login", ctx);
+	await commands.figma.handler("login figd_bad", ctx); // /v1/me mocked ok
+	await commands.figma.handler("logout", ctx);
+	await commands.figma.handler("login figd_bad", ctx);
+	process.env.FIGMA_ACCESS_TOKEN = "figd_env";
+	await commands.figma.handler("logout", ctx);
+	await commands.figma.handler("team", ctx);
+	await commands.figma.handler("open", ctx);
+	await commands.figma.handler("implement", ctx);
+	await commands.figma.handler("help", ctx);
+	await commands.figma.handler("teams", ctx);
+	expect(notes[0]).toContain("Usage: /figma login");
+	expect(notes[1]).toContain("Logged in as me");
+	expect(notes[2]).toBe("Logged out.");
+	expect(notes[4]).toContain("env is still set");
+	expect(notes.at(-2)).toContain("/figma browse".slice(0, 6));
+	expect(notes.at(-1)).toContain("No teams");
+});
+
+test("/figma browse with several teams, back navigation, whole-file explore", async () => {
+	const m = mockFetch({
+		"/v1/teams/1/projects": () => ({ name: "T1", projects: [{ id: "p1", name: "P" }] }),
+		"/v1/teams/2/projects": () => ({ name: "T2", projects: [] }),
+		"/v1/projects/p1/files": () => ({ files: [] }),
+	});
+	globalThis.fetch = m.fn as any;
+	const notes: string[] = [];
+	const seq: (string | undefined)[] = ["2"];
+	const ctx = { ui: { notify: (x: string) => notes.push(x), input: async () => undefined, select: async () => seq.shift() } } as any;
+	await commands.figma.handler("team 1", ctx);
+	await commands.figma.handler("team 2", ctx);
+	await commands.figma.handler("", ctx);
+	expect(notes.at(-1)).toContain("No projects");
+	// team 1: project -> no files -> back
+	seq.push("1", "P", "← back");
+	await commands.figma.handler("", ctx);
+	expect(notes.at(-1)).toBe("Project has no files.");
 });
