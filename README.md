@@ -1,11 +1,11 @@
-# pi-figma-mcp
+# pi-figma-kit
 
 Figma for [pi](https://github.com/earendil-works/pi): a set of `figma_*` tools plus a `/figma` command, built on the Figma REST API. Fetch designs, turn them into code, look at them, export assets, read design tokens, and browse your projects, all from pi. A pi package, no server process.
 
 ## Install
 
 ```sh
-pi install /Users/EBEMXC4/Projects/pi-figma-mcp      # or: pi -e ./extensions/figma.ts
+pi install /Users/EBEMXC4/Projects/pi-figma-kit      # or: pi -e ./extensions/figma.ts
 ```
 
 Auth: create a personal access token (Figma → Settings → Security) with scopes `file_content:read`, `file_metadata:read`, `file_comments:read/write`, `file_variables:read` (Enterprise), `library_content:read`, `projects:read`, `current_user:read`. Then either

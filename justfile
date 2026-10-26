@@ -1,4 +1,4 @@
-# pi-figma-mcp — task runner (scripts are nushell; CI runs the same ones)
+# pi-figma-kit — task runner (scripts are nushell; CI runs the same ones)
 # Install just: brew install just · nushell: cargo install nu --locked · bun: https://bun.sh
 # Usage: just <task>
 
@@ -97,7 +97,7 @@ publish: check
     npm publish --access public
 
 # ── Git remotes & pushing ─────────────────────────────────────────────────────
-# pi-figma-mcp lives on GitHub (origin) and the Gitea instances: Microlab, Starscream and
+# pi-figma-kit lives on GitHub (origin) and the Gitea instances: Microlab, Starscream and
 # nexus-lab. Every *-all recipe loops over REMOTES, skips remotes this checkout does not have,
 # and keeps going when one fails. Recipes that move history by force say so: be sure!
 
@@ -116,9 +116,9 @@ remotes:
 # Add the remotes this repo is expected to have (nexus-lab: `git remote add gitea-nexus-lab <url>`)
 setup-remotes:
     #!/usr/bin/env sh
-    git remote get-url origin >/dev/null 2>&1 || git remote add origin git@github.com:sorinirimies/pi-figma-mcp.git
-    git remote get-url gitea-microlab >/dev/null 2>&1 || git remote add gitea-microlab ssh://git@192.168.1.204:30009/sorin/pi-figma-mcp.git
-    git remote get-url gitea-starscream >/dev/null 2>&1 || git remote add gitea-starscream gitea@192.168.1.44:sorin/pi-figma-mcp.git
+    git remote get-url origin >/dev/null 2>&1 || git remote add origin git@github.com:sorinirimies/pi-figma-kit.git
+    git remote get-url gitea-microlab >/dev/null 2>&1 || git remote add gitea-microlab ssh://git@192.168.1.204:30009/sorin/pi-figma-kit.git
+    git remote get-url gitea-starscream >/dev/null 2>&1 || git remote add gitea-starscream gitea@192.168.1.44:sorin/pi-figma-kit.git
     git remote -v
 
 # ── push ──

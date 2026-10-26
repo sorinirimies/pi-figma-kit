@@ -1,5 +1,5 @@
 {
-  "name": "pi-figma-mcp",
+  "name": "pi-figma-kit",
   "version": "0.1.0",
   "description": "Pi extension: Figma tools (design context, code generation, screenshots, assets, variables, comments, project browser) over the Figma REST API.",
   "keywords": [
@@ -40,7 +40,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sorinirimies/pi-figma-mcp.git"
+    "url": "git+https://github.com/sorinirimies/pi-figma-kit.git"
   },
-  "homepage": "https://github.com/sorinirimies/pi-figma-mcp#readme"
+  "homepage": "https://github.com/sorinirimies/pi-figma-kit#readme"
 }

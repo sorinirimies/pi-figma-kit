@@ -1,5 +1,5 @@
 /**
- * pi-figma-mcp: Figma for pi. Registers figma_* tools (explore files, design context, code scaffolds,
+ * pi-figma-kit: Figma for pi. Registers figma_* tools (explore files, design context, code scaffolds,
  * screenshots, asset export, variables/styles/components, comments) and a /figma command (login + browser).
  *
  *   core/     url parsing, config (token), REST client
