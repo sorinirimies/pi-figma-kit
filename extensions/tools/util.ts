@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
 import type { FigmaClient } from "../core/api.ts";
+import type { McpClient } from "../core/mcp.ts";
 import { type FigmaRef, normalizeIds, parseFigmaRef } from "../core/url.ts";
 
 export const MAX_OUT = 60_000;
@@ -11,6 +12,7 @@ export const NODE_IDS = Type.Optional(Type.Array(Type.String(), { description: '
 
 export interface Ctx {
 	client: FigmaClient;
+	mcp: McpClient;
 }
 
 export const text = (t: string, details: unknown = {}) => ({ content: [{ type: "text" as const, text: clip(t) }], details });

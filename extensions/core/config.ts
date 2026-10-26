@@ -7,6 +7,8 @@ export interface FigmaConfig {
 	/** Teams shown in /figma browse (Figma has no "list my teams" endpoint). */
 	teamIds: string[];
 	baseUrl?: string;
+	/** Figma desktop MCP server URL (default http://127.0.0.1:3845/mcp; env FIGMA_MCP_URL wins). */
+	desktopUrl?: string;
 }
 
 export function agentDir(): string {
@@ -17,7 +19,7 @@ export const configPath = () => join(agentDir(), "figma.json");
 export async function loadConfig(): Promise<FigmaConfig> {
 	try {
 		const j = JSON.parse(await readFile(configPath(), "utf8"));
-		return { token: typeof j.token === "string" ? j.token : undefined, teamIds: Array.isArray(j.teamIds) ? j.teamIds.map(String) : [], baseUrl: typeof j.baseUrl === "string" ? j.baseUrl : undefined };
+		return { token: typeof j.token === "string" ? j.token : undefined, teamIds: Array.isArray(j.teamIds) ? j.teamIds.map(String) : [], baseUrl: typeof j.baseUrl === "string" ? j.baseUrl : undefined, desktopUrl: typeof j.desktopUrl === "string" ? j.desktopUrl : undefined };
 	} catch {
 		return { teamIds: [] };
 	}

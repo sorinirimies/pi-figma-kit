@@ -10,6 +10,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { completions, runCommand } from "./command/figma-command.ts";
 import { FigmaClient } from "./core/api.ts";
+import { McpClient } from "./core/mcp.ts";
 import { type FigmaConfig, envToken, loadConfig } from "./core/config.ts";
 import { allTools } from "./tools/index.ts";
 
@@ -24,9 +25,10 @@ export default function figmaExtension(pi: ExtensionAPI) {
 		getToken: () => envToken() ?? config.token,
 		baseUrl: () => config.baseUrl,
 	});
+	const mcp = new McpClient({ url: () => process.env.FIGMA_MCP_URL || config.desktopUrl });
 	// Tools read the saved config lazily on first use so registration stays synchronous.
 	const ready = loadConfig().then((c) => Object.assign(config, c));
-	for (const tool of allTools({ client })) {
+	for (const tool of allTools({ client, mcp })) {
 		const exec = tool.execute;
 		pi.registerTool({ ...tool, execute: async (...a: Parameters<typeof exec>) => (await ready, exec(...a)) } as typeof tool);
 	}

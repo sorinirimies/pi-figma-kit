@@ -5,9 +5,9 @@
 [![CI](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **30 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
+Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **33 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
 
-It talks to the **Figma REST API** directly: no desktop app, no separate MCP server process, nothing to keep running. Works with any file you can open, including ones you only have view access to.
+It talks to the **Figma REST API** directly: no desktop app, no separate MCP server process, nothing to keep running. Works with any file you can open, including ones you only have view access to. If the Figma desktop app is running, an optional **bridge** adds live selection, Dev Mode and Code Connect.
 
 - [Install](#install) · [Authentication](#authentication) · [How it works](#how-it-works) · [Tools](#tools) · [`/figma` command](#figma-command) · [Workflows](#workflows) · [Design translation](#design-translation) · [Limits](#limits) · [Security](#security-notes) · [Development](#development) · [Releases](#releases)
 
@@ -81,10 +81,10 @@ The code layout mirrors that pipeline:
 ```
 extensions/
   figma.ts            wiring only: registers the tools and /figma
-  core/               url parsing · config (token) · REST client
+  core/               url parsing · config (token) · REST client · mcp.ts (desktop MCP client)
   design/             css.ts (Figma → CSS) · simplify.ts (DNode tree + outline) · codegen.ts (HTML/React/Tailwind)
                       compose.ts (Jetpack Compose) · tokens.ts (CSS/JSON/Tailwind) · flows.ts (prototype graph)
-  tools/              read.ts · assets.ts · system.ts · browse.ts · extra.ts · util.ts · index.ts
+  tools/              read.ts · assets.ts · system.ts · browse.ts · extra.ts · desktop.ts · util.ts · index.ts
   command/            /figma
 ```
 
@@ -140,6 +140,16 @@ Every `file` argument accepts a Figma URL (its `node-id` is used automatically) 
 | `figma_post_comment` | **Write.** New comment (optionally on a node) or reply |
 | `figma_delete_comment` | **Write.** Delete a comment |
 | `figma_get_dev_resources` / `figma_create_dev_resource` | Dev Mode links on nodes; attach a PR or source file to a node (**write**) |
+
+### Figma desktop bridge (optional)
+
+| Tool | What it does |
+|---|---|
+| `figma_desktop_selection` | Design context (+ optional screenshot) of the frame **currently selected** in the Figma app, or of a node id; accepts language/framework hints |
+| `figma_desktop_call` | Call any tool of the desktop MCP server (`get_design_context`, `get_metadata`, `get_screenshot`, `get_variable_defs`, `get_code_connect_map`, …) |
+| `figma_desktop_tools` | List the desktop server's tools with their schemas; doubles as a connectivity check |
+
+These talk to Figma's own MCP server running in the desktop app (default `http://127.0.0.1:3845/mcp`, MCP Streamable HTTP; JSON and SSE replies are both handled). They give you what REST can't: **live selection, Dev Mode snippets and Code Connect**. Enable it in Figma: *Dev Mode → "Enable desktop MCP server"* (needs a Dev or Full seat). If the app isn't running, only these three tools fail, with a message saying so; everything else keeps working. Override the URL with `FIGMA_MCP_URL` or `"desktopUrl"` in `~/.pi/agent/figma.json`. Tool names and arguments come from your Figma version, so call `figma_desktop_tools` first.
 
 ### Utility
 
@@ -208,7 +218,7 @@ Generated code is a **scaffold**: structure, spacing, colours and typography are
 
 ## Limits
 
-- It is the **REST API**, so there is no live selection, Code Connect or Dev Mode code snippets (those need Figma's desktop MCP server). Pass links with `node-id`.
+- The REST tools have no live selection, Code Connect or Dev Mode snippets. Pass links with `node-id`, or use the [desktop bridge](#figma-desktop-bridge-optional) for those.
 - Variables and variable writes need a Figma **Enterprise** plan; `figma_export_tokens` falls back to styles otherwise.
 - Figma rate-limits per token. Short `429`s are retried; long ones are reported with the wait time.
 - Rendered images come from Figma's servers and expire; they are downloaded immediately.

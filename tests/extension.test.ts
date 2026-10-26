@@ -62,9 +62,9 @@ const run = (name: string, params: any, cwd = tmpdir()) => tools[name].execute("
 const txt = (r: any) => r.content[0].text as string;
 
 test("registers all tools and the command", () => {
-	expect(Object.keys(tools).length).toBe(30);
+	expect(Object.keys(tools).length).toBe(33);
 	expect(Object.keys(tools).sort()).toEqual([
-		"figma_create_dev_resource", "figma_delete_comment", "figma_export_tokens", "figma_get_component", "figma_get_dev_resources", "figma_get_file_meta",
+		"figma_create_dev_resource", "figma_desktop_call", "figma_desktop_selection", "figma_desktop_tools", "figma_delete_comment", "figma_export_tokens", "figma_get_component", "figma_get_dev_resources", "figma_get_file_meta",
 		"figma_get_prototype_flows", "figma_get_published_variables", "figma_get_style", "figma_get_team_styles", "figma_get_text", "figma_update_variables",
 		"figma_download_assets", "figma_download_image_fills", "figma_generate_code", "figma_get_comments", "figma_get_components", "figma_get_design_context",
 		"figma_get_file_structure", "figma_get_node_raw", "figma_get_screenshot", "figma_get_styles", "figma_get_variables", "figma_get_versions",
@@ -244,4 +244,18 @@ test("export tokens: variables, styles fallback, errors", async () => {
 	await expect(run("figma_export_tokens", { file: K2, source: "variables" })).rejects.toThrow(/403/);
 	expect(txt(await run("figma_export_tokens", { file: K2 }))).toContain("No tokens found");
 	await expect(run("figma_update_variables", { file: K2, body: {} })).rejects.toThrow();
+});
+
+test("desktop bridge uses FIGMA_MCP_URL", async () => {
+	process.env.FIGMA_MCP_URL = "http://localhost:9999/mcp";
+	try {
+		globalThis.fetch = (async (u: any, init: any) => {
+			const b = JSON.parse(init.body);
+			calls.push({ url: new URL(String(u)), init } as any);
+			return b.id === undefined ? new Response(null, { status: 202 }) : Response.json({ jsonrpc: "2.0", id: b.id, result: { tools: [{ name: "get_metadata" }] } });
+		}) as any;
+		expect(txt(await run("figma_desktop_tools", {}))).toContain("http://localhost:9999/mcp: 1 tools");
+	} finally {
+		delete process.env.FIGMA_MCP_URL;
+	}
 });
