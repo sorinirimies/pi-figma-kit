@@ -10,6 +10,22 @@ export interface CommandHost {
 	client: FigmaClient;
 	mcp: McpClient;
 	config: FigmaConfig;
+	/** Registered figma_* tools, for /figma tools. */
+	tools?: readonly ToolInfo[];
+}
+
+export interface ToolInfo {
+	name: string;
+	description: string;
+	annotations?: { readOnlyHint?: boolean };
+}
+
+/** All tools, read-only first, one line each. */
+export function toolList(tools: readonly ToolInfo[]): string {
+	const line = (t: ToolInfo) => `  ${t.name.padEnd(30)} ${t.description.split(/(?<=\.)\s/)[0]}`;
+	const read = tools.filter((t) => t.annotations?.readOnlyHint);
+	const other = tools.filter((t) => !t.annotations?.readOnlyHint);
+	return [`${tools.length} figma tools, all available to the agent.`, "", "Read:", ...read.map(line), "", "Write / save files / desktop:", ...other.map(line)].join("\n");
 }
 
 export const USAGE = [
@@ -19,6 +35,7 @@ export const USAGE = [
 	"/figma whoami          check the token and the desktop bridge",
 	"/figma team <id|url>   add a team to the browser (id from figma.com/files/team/<ID>)",
 	"/figma teams           list configured teams",
+	"/figma tools           list all figma_* tools",
 	"/figma open <url>      have the agent inspect a Figma link",
 	"/figma implement <url> [instructions]   fetch the design and implement it",
 ].join("\n");
@@ -32,6 +49,7 @@ const SUBS: [string, string][] = [
 	["whoami", "check the token and the desktop bridge"],
 	["team", "add a team id or URL to the browser"],
 	["teams", "list the configured teams"],
+	["tools", "list all figma_* tools"],
 	["open", "have the agent inspect a Figma link"],
 	["implement", "fetch a design and implement it here"],
 	["help", "show usage"],
@@ -136,6 +154,8 @@ export async function runCommand(args: string, h: CommandHost, ctx: ExtensionCon
 			return ctx.ui.notify(`Teams: ${h.config.teamIds.join(", ")}`, "info");
 		case "teams":
 			return ctx.ui.notify(h.config.teamIds.length ? `Teams: ${h.config.teamIds.join(", ")}` : "No teams. /figma team <id>", "info");
+		case "tools":
+			return ctx.ui.notify(toolList(h.tools ?? []), "info");
 		case "open": {
 			if (!arg) return ctx.ui.notify("Usage: /figma open <url>", "warning");
 			parseFigmaRef(arg.split(/\s+/)[0]!);

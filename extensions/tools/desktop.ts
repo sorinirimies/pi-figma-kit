@@ -14,7 +14,7 @@ export function desktopTools({ mcp }: { mcp: McpClient }) {
 	const tools = defineTool({
 		name: "figma_desktop_tools",
 		label: "Figma desktop: list tools",
-		description: "List the tools exposed by the Figma DESKTOP MCP server (needs the Figma app open with Dev Mode → desktop MCP server enabled), with their input schemas. Also a connectivity check.",
+		description: "Tools and args of the Figma desktop app's MCP server (Dev Mode → desktop MCP server). Also a connectivity check.",
 		parameters: Type.Object({}),
 		async execute() {
 			const list = await mcp.listTools();
@@ -27,11 +27,11 @@ export function desktopTools({ mcp }: { mcp: McpClient }) {
 		name: "figma_desktop_call",
 		label: "Figma desktop: call tool",
 		description:
-			"Call any tool of the Figma desktop MCP server. Without nodeId it acts on the user's CURRENT SELECTION in the Figma app. Typical: get_design_context (official design → code context with Code Connect and Dev Mode data), get_metadata, get_screenshot, get_variable_defs, get_code_connect_map, create_design_system_rules. Use figma_desktop_tools first to see names/args on this version.",
+			"Call a Figma desktop MCP tool; without nodeId it acts on the current selection. E.g. get_design_context (with Code Connect), get_metadata, get_screenshot, get_variable_defs, get_code_connect_map. Names/args: figma_desktop_tools.",
 		promptSnippet: "Use the user's live Figma selection / Dev Mode / Code Connect via the desktop app",
 		parameters: Type.Object({
-			tool: Type.String({ description: 'Desktop MCP tool name, e.g. "get_design_context"' }),
-			arguments: Type.Optional(Type.Record(Type.String(), Type.Unknown(), { description: 'e.g. {"nodeId":"1:2","clientLanguages":"kotlin","clientFrameworks":"compose"}; omit nodeId for the current selection' })),
+			tool: Type.String(),
+			arguments: Type.Optional(Type.Record(Type.String(), Type.Unknown(), { description: 'e.g. {"nodeId":"1:2","clientFrameworks":"compose"}' })),
 		}),
 		async execute(_id, p) {
 			return convert(await mcp.callTool(p.tool, p.arguments ?? {}));
@@ -41,13 +41,13 @@ export function desktopTools({ mcp }: { mcp: McpClient }) {
 	const selection = defineTool({
 		name: "figma_desktop_selection",
 		label: "Figma desktop: current selection",
-		description: "Shortcut: design context (and optionally a screenshot) of what the user currently has SELECTED in the Figma desktop app, or of a node id. Use when the user says 'the selected frame'.",
+		description: "Design context (and optional screenshot) of the current selection in the Figma desktop app, or of a node id.",
 		promptSnippet: "Read the frame currently selected in Figma",
 		parameters: Type.Object({
-			node_id: Type.Optional(Type.String({ description: "Node id; default current selection" })),
-			language: Type.Optional(Type.String({ description: 'Target language hint, e.g. "kotlin"' })),
-			framework: Type.Optional(Type.String({ description: 'Target framework hint, e.g. "compose", "react"' })),
-			screenshot: Type.Optional(Type.Boolean({ description: "Also fetch a screenshot" })),
+			node_id: Type.Optional(Type.String({ description: "default: selection" })),
+			language: Type.Optional(Type.String({ description: 'e.g. "kotlin"' })),
+			framework: Type.Optional(Type.String({ description: 'e.g. "compose"' })),
+			screenshot: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_id, p) {
 			const base: Record<string, unknown> = {};

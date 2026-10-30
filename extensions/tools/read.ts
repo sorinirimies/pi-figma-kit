@@ -1,13 +1,13 @@
 /** Read/explore tools: structure, design context, code generation, search. */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { type Framework, generate } from "../design/codegen.ts";
 import { generateCompose } from "../design/compose.ts";
 import { type DNode, collectAssets, countNodes, outline, simplify } from "../design/simplify.ts";
 import { type Ctx, FILE, NODE_IDS, fetchNodes, nodeUrl, target, text } from "./util.ts";
 
-const DEPTH = Type.Optional(Type.Number({ description: "Max tree depth below each node (default 6)", minimum: 0, maximum: 30 }));
-const MAX_NODES = Type.Optional(Type.Number({ description: "Max nodes per root (default 400)", minimum: 1, maximum: 5000 }));
+const DEPTH = Type.Optional(Type.Number({ description: "default 6", minimum: 0, maximum: 30 }));
+const MAX_NODES = Type.Optional(Type.Number({ description: "per root, default 400", minimum: 1, maximum: 5000 }));
 
 function needNode(ids: string[]) {
 	if (!ids.length) throw new Error("No node id. Pass node_ids, or a URL containing ?node-id=. Use figma_get_file_structure to discover ids.");
@@ -27,11 +27,11 @@ export function readTools({ client }: Ctx) {
 	const structure = defineTool({
 		name: "figma_get_file_structure",
 		label: "Figma: file structure",
-		description: "List a Figma file's pages and their top-level frames (ids, types, sizes). Start here to explore a file and find node ids.",
+		description: "Pages and top-level frames of a file (ids, types, sizes). Start here to find node ids.",
 		promptSnippet: "Explore a Figma file: pages and top-level frames with node ids",
 		parameters: Type.Object({
 			file: FILE,
-			depth: Type.Optional(Type.Number({ description: "2 = pages + top-level frames (default); 3 adds their children", minimum: 1, maximum: 4 })),
+			depth: Type.Optional(Type.Number({ description: "2 = pages + frames (default), 3 adds children", minimum: 1, maximum: 4 })),
 		}),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -56,12 +56,9 @@ export function readTools({ client }: Ctx) {
 		name: "figma_get_design_context",
 		label: "Figma: design context",
 		description:
-			"Fetch one or more nodes and return a compact design tree: layout (flex/auto-layout, gaps, padding), CSS-ready styles (fills, gradients, borders, radii, shadows, blurs, typography incl. mixed text runs), text content, component names, applied style names, and which nodes are SVG icons / image fills. Use this to implement or review a design.",
+			"Compact design tree of nodes for implementing or reviewing UI: auto-layout, CSS styles (fills, gradients, borders, radii, shadows, blurs, typography incl. mixed text runs), text, components, style names, SVG icons and image fills.",
 		promptSnippet: "Get a compact, CSS-annotated design tree for Figma nodes (to implement UI)",
-		promptGuidelines: [
-			"For Figma-to-code: figma_get_design_context (or figma_generate_code for a scaffold), then figma_get_screenshot to compare visually, and figma_download_assets for icons/images.",
-		],
-		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS, depth: DEPTH, max_nodes: MAX_NODES, format: Type.Optional(Type.Union([Type.Literal("outline"), Type.Literal("json")], { description: "outline (default, compact) or json" })) }),
+		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS, depth: DEPTH, max_nodes: MAX_NODES, format: Type.Optional(StringEnum(["outline", "json"], { description: "default outline" })) }),
 		async execute(_id, p) {
 			const { ref, ids } = target(p.file, p.node_ids);
 			needNode(ids);
@@ -77,15 +74,15 @@ export function readTools({ client }: Ctx) {
 		name: "figma_generate_code",
 		label: "Figma: generate code",
 		description:
-			"Generate a code scaffold for a Figma node: HTML+CSS, React (JSX + CSS), Tailwind (arbitrary-value classes), or Jetpack Compose (Kotlin). Positions, flex layout, colors, typography, borders, shadows are translated; adapt it to the project's design system/components afterwards. Icons become <img> refs to be exported via figma_download_assets.",
+			"Code scaffold for a node: HTML+CSS, React, Tailwind or Jetpack Compose. Adapt it to the project's components afterwards; icons are referenced as files to export with figma_download_assets.",
 		promptSnippet: "Generate HTML/React/Tailwind scaffold code from a Figma node",
 		parameters: Type.Object({
 			file: FILE,
-			node_id: Type.Optional(Type.String({ description: "Node id (defaults to the URL's node-id)" })),
-			framework: Type.Optional(Type.Union([Type.Literal("html"), Type.Literal("react"), Type.Literal("tailwind"), Type.Literal("compose")], { description: "default: react; compose = Jetpack Compose (Kotlin)" })),
+			node_id: Type.Optional(Type.String({ description: "default: URL node-id" })),
+			framework: Type.Optional(StringEnum(["html", "react", "tailwind", "compose"], { description: "default react" })),
 			depth: DEPTH,
 			max_nodes: MAX_NODES,
-			assets_dir: Type.Optional(Type.String({ description: "Path prefix for asset references (default ./assets)" })),
+			assets_dir: Type.Optional(Type.String({ description: "asset path prefix, default ./assets" })),
 			component_name: Type.Optional(Type.String()),
 		}),
 		async execute(_id, p) {
@@ -109,11 +106,11 @@ export function readTools({ client }: Ctx) {
 	const search = defineTool({
 		name: "figma_search_nodes",
 		label: "Figma: search nodes",
-		description: "Search a file for nodes by name or text content (case-insensitive substring or /regex/), optionally filtered by node type. Returns ids, type, page path, and URL.",
+		description: "Find nodes by name or text content (case-insensitive substring or /regex/), optionally by type. Returns ids, page and URL.",
 		parameters: Type.Object({
 			file: FILE,
-			query: Type.String({ description: 'Substring, or "/regex/"' }),
-			types: Type.Optional(Type.Array(Type.String(), { description: "e.g. FRAME, COMPONENT, INSTANCE, TEXT" })),
+			query: Type.String(),
+			types: Type.Optional(Type.Array(Type.String(), { description: "e.g. FRAME, INSTANCE, TEXT" })),
 			limit: Type.Optional(Type.Number({ default: 50 })),
 		}),
 		async execute(_id, p) {
@@ -141,7 +138,7 @@ export function readTools({ client }: Ctx) {
 	const raw = defineTool({
 		name: "figma_get_node_raw",
 		label: "Figma: raw node JSON",
-		description: "Escape hatch: the raw Figma REST JSON for nodes (use when design context is missing something, e.g. constraints, prototype interactions, boundVariables).",
+		description: "Raw REST JSON of nodes, for what design context omits (constraints, interactions, boundVariables).",
 		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS, depth: DEPTH }),
 		async execute(_id, p) {
 			const { ref, ids } = target(p.file, p.node_ids);

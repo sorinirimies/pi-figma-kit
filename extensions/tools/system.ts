@@ -11,9 +11,9 @@ export function systemTools({ client }: Ctx) {
 	const variables = defineTool({
 		name: "figma_get_variables",
 		label: "Figma: variables",
-		description: "Local variables (design tokens: colors, spacing, typography numbers, strings) grouped by collection and mode, with values per mode. Needs a plan/token with the file_variables:read scope (Enterprise); otherwise fall back to figma_get_styles.",
+		description: "Local variables (design tokens) by collection, with values per mode. Needs file_variables:read (Enterprise); else use figma_get_styles.",
 		promptSnippet: "Read a Figma file's design tokens (variables)",
-		parameters: Type.Object({ file: FILE, filter: Type.Optional(Type.String({ description: "Substring on variable name" })) }),
+		parameters: Type.Object({ file: FILE, filter: Type.Optional(Type.String({ description: "name substring" })) }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
 			const r = await client.get(`/v1/files/${ref.key}/variables/local`);
@@ -36,7 +36,7 @@ export function systemTools({ client }: Ctx) {
 	const styles = defineTool({
 		name: "figma_get_styles",
 		label: "Figma: styles",
-		description: "Published/local styles in a file (color, text, effect, grid) with their resolved CSS values.",
+		description: "Styles of a file (color, text, effect, grid) with resolved CSS.",
 		parameters: Type.Object({ file: FILE }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -61,7 +61,7 @@ export function systemTools({ client }: Ctx) {
 	const components = defineTool({
 		name: "figma_get_components",
 		label: "Figma: components",
-		description: "List components and component sets of a file, or of a whole team library (team_id). Gives names, keys, node ids, descriptions.",
+		description: "Components and component sets of a file or a team library (team_id): names, keys, node ids, descriptions.",
 		parameters: Type.Object({ file: Type.Optional(FILE), team_id: Type.Optional(Type.String()), query: Type.Optional(Type.String()), limit: Type.Optional(Type.Number({ default: 100 })) }),
 		async execute(_id, p) {
 			let comps: any[] = [];

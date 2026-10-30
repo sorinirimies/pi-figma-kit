@@ -7,8 +7,9 @@ import { type FigmaRef, normalizeIds, parseFigmaRef } from "../core/url.ts";
 
 export const MAX_OUT = 60_000;
 
-export const FILE = Type.String({ description: "Figma file URL (preferred; its node-id is used when no node ids are given) or file key" });
-export const NODE_IDS = Type.Optional(Type.Array(Type.String(), { description: 'Node ids like "1:2" (or "1-2"). Defaults to the node-id in the URL.' }));
+// Shared params: repeated in ~25 tool schemas, so keep them short. The URL node-id default is explained once in GUIDELINES.
+export const FILE = Type.String({ description: "Figma URL or file key" });
+export const NODE_IDS = Type.Optional(Type.Array(Type.String(), { description: 'e.g. "1:2"; default: URL node-id' }));
 
 export interface Ctx {
 	client: FigmaClient;

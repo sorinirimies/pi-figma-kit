@@ -1,6 +1,6 @@
 /** Everything else the Figma REST API offers that is useful from an agent: meta, tokens export, flows, text, dev resources, comments admin. */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { collectFlows, renderFlows } from "../design/flows.ts";
 import { fromStyles, fromVariables, toCss, toJson, toTailwind, type TokenSet } from "../design/tokens.ts";
 import { type Ctx, FILE, NODE_IDS, fetchNodes, nodeUrl, target, text } from "./util.ts";
@@ -9,7 +9,7 @@ export function extraTools({ client }: Ctx) {
 	const meta = defineTool({
 		name: "figma_get_file_meta",
 		label: "Figma: file metadata",
-		description: "Cheap file metadata: name, folder, creator, last editor, last touched, editor type, thumbnail, link access (no document download).",
+		description: "Cheap file metadata: name, folder, creator, last edit, editor type, link access.",
 		parameters: Type.Object({ file: FILE }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -22,8 +22,8 @@ export function extraTools({ client }: Ctx) {
 	const component = defineTool({
 		name: "figma_get_component",
 		label: "Figma: component by key",
-		description: "Look up a published component or component set by its key (from figma_get_components): name, description, file, node id.",
-		parameters: Type.Object({ key: Type.String(), kind: Type.Optional(Type.Union([Type.Literal("component"), Type.Literal("component_set")])) }),
+		description: "Published component (set) by key: name, description, file, node.",
+		parameters: Type.Object({ key: Type.String(), kind: Type.Optional(StringEnum(["component", "component_set"])) }),
 		async execute(_id, p) {
 			const r = await client.get(`/v1/${p.kind === "component_set" ? "component_sets" : "components"}/${p.key}`);
 			const m = r.meta ?? r;
@@ -34,7 +34,7 @@ export function extraTools({ client }: Ctx) {
 	const styleByKey = defineTool({
 		name: "figma_get_style",
 		label: "Figma: style by key",
-		description: "Look up a published style by its key: name, type, description, file and node.",
+		description: "Published style by key: name, type, description, file, node.",
 		parameters: Type.Object({ key: Type.String() }),
 		async execute(_id, p) {
 			const r = await client.get(`/v1/styles/${p.key}`);
@@ -46,7 +46,7 @@ export function extraTools({ client }: Ctx) {
 	const teamStyles = defineTool({
 		name: "figma_get_team_styles",
 		label: "Figma: team library styles",
-		description: "Published styles of a team library (colors, text, effects, grids).",
+		description: "Published styles of a team library.",
 		parameters: Type.Object({ team_id: Type.String(), query: Type.Optional(Type.String()) }),
 		async execute(_id, p) {
 			const r = await client.get(`/v1/teams/${p.team_id}/styles`, { page_size: 100 });
@@ -59,7 +59,7 @@ export function extraTools({ client }: Ctx) {
 	const published = defineTool({
 		name: "figma_get_published_variables",
 		label: "Figma: published variables",
-		description: "Variables published from a library file (what consumers see). Needs file_variables:read (Enterprise).",
+		description: "Variables a library file publishes. Needs file_variables:read (Enterprise).",
 		parameters: Type.Object({ file: FILE }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -73,7 +73,7 @@ export function extraTools({ client }: Ctx) {
 	const updateVars = defineTool({
 		name: "figma_update_variables",
 		label: "Figma: update variables (write)",
-		description: "ADVANCED/WRITE: POST /v1/files/:key/variables with a raw body {variableCollections?, variableModes?, variables?, variableModeValues?} (create/update/delete). Needs file_variables:write (Enterprise). Only when explicitly asked.",
+		description: "WRITE: POST /v1/files/:key/variables, raw body {variableCollections?, variableModes?, variables?, variableModeValues?}. Needs file_variables:write (Enterprise).",
 		parameters: Type.Object({ file: FILE, body: Type.Record(Type.String(), Type.Unknown()) }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -87,15 +87,15 @@ export function extraTools({ client }: Ctx) {
 		name: "figma_export_tokens",
 		label: "Figma: export design tokens",
 		description:
-			"Export design tokens as CSS custom properties (one :root block + [data-mode] overrides per extra mode, aliases as var()), JSON (nested by name path, per-mode values), or a Tailwind theme. Uses local variables; falls back to styles when variables aren't available (no Enterprise).",
+			"Design tokens as CSS vars (:root + [data-mode] per mode, aliases as var()), nested JSON, or a Tailwind theme. From variables, else styles.",
 		promptSnippet: "Export Figma variables/styles as CSS vars, JSON or Tailwind theme",
 		parameters: Type.Object({
 			file: FILE,
-			format: Type.Optional(Type.Union([Type.Literal("css"), Type.Literal("json"), Type.Literal("tailwind")], { description: "default css" })),
-			collection: Type.Optional(Type.String({ description: "Only collections whose name contains this" })),
-			unit: Type.Optional(Type.String({ description: 'Unit appended to FLOAT variables (default "px"; "" for none)' })),
-			source: Type.Optional(Type.Union([Type.Literal("auto"), Type.Literal("variables"), Type.Literal("styles")])),
-			selector: Type.Optional(Type.String({ description: "CSS selector for the base mode (default :root)" })),
+			format: Type.Optional(StringEnum(["css", "json", "tailwind"], { description: "default css" })),
+			collection: Type.Optional(Type.String({ description: "name substring" })),
+			unit: Type.Optional(Type.String({ description: 'for FLOATs, default "px"' })),
+			source: Type.Optional(StringEnum(["auto", "variables", "styles"])),
+			selector: Type.Optional(Type.String({ description: "base mode, default :root" })),
 		}),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -125,8 +125,8 @@ export function extraTools({ client }: Ctx) {
 	const flows = defineTool({
 		name: "figma_get_prototype_flows",
 		label: "Figma: prototype flows",
-		description: "Prototype navigation: flow starting points and every interaction (trigger → destination frame / URL / back). Use it to build routing/navigation graphs and screen-to-screen behaviour.",
-		parameters: Type.Object({ file: FILE, page: Type.Optional(Type.String({ description: "Only this page name (substring)" })) }),
+		description: "Prototype flows and interactions (trigger → frame / URL / back), for navigation graphs.",
+		parameters: Type.Object({ file: FILE, page: Type.Optional(Type.String({ description: "name substring" })) }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
 			const f = await client.get(`/v1/files/${ref.key}`);
@@ -138,7 +138,7 @@ export function extraTools({ client }: Ctx) {
 	const texts = defineTool({
 		name: "figma_get_text",
 		label: "Figma: text content",
-		description: "Extract all text of nodes (copy deck / i18n strings) with node ids, font size and layer path. Good for localisation files and content review.",
+		description: "All text in nodes (copy deck, i18n) with ids, font size and layer path.",
 		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS, max: Type.Optional(Type.Number({ default: 300 })) }),
 		async execute(_id, p) {
 			const { ref, ids } = target(p.file, p.node_ids);
@@ -159,7 +159,7 @@ export function extraTools({ client }: Ctx) {
 	const devResources = defineTool({
 		name: "figma_get_dev_resources",
 		label: "Figma: dev resources",
-		description: "Dev Mode resources (links to code, docs, tickets) attached to nodes of a file.",
+		description: "Dev Mode links (code, docs, tickets) on nodes.",
 		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS }),
 		async execute(_id, p) {
 			const { ref, ids } = target(p.file, p.node_ids);
@@ -171,7 +171,7 @@ export function extraTools({ client }: Ctx) {
 	const addDevResource = defineTool({
 		name: "figma_create_dev_resource",
 		label: "Figma: add dev resource (write)",
-		description: "WRITE: attach a link (e.g. the PR or source file implementing a node) to a node as a Dev Mode resource. Only when asked.",
+		description: "WRITE: attach a link (e.g. the PR implementing it) to a node as a Dev Mode resource.",
 		parameters: Type.Object({ file: FILE, node_id: Type.String(), name: Type.String(), url: Type.String() }),
 		async execute(_id, p) {
 			const { ref, ids } = target(p.file, [p.node_id]);
@@ -183,7 +183,7 @@ export function extraTools({ client }: Ctx) {
 	const deleteComment = defineTool({
 		name: "figma_delete_comment",
 		label: "Figma: delete comment (write)",
-		description: "WRITE: delete one of your comments by id. Only when asked.",
+		description: "WRITE: delete one of your comments.",
 		parameters: Type.Object({ file: FILE, comment_id: Type.String() }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);

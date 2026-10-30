@@ -2,11 +2,11 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { type Ctx, FILE, NODE_IDS, resolveDir, safeName, saveBytes, target, text } from "./util.ts";
 
-const FORMAT = Type.Optional(Type.Union([Type.Literal("png"), Type.Literal("jpg"), Type.Literal("svg"), Type.Literal("pdf")], { description: "default png" }));
-const SCALE = Type.Optional(Type.Number({ description: "1-4 (png/jpg only), default 2", minimum: 0.01, maximum: 4 }));
+const FORMAT = Type.Optional(StringEnum(["png", "jpg", "svg", "pdf"]));
+const SCALE = Type.Optional(Type.Number({ description: "png/jpg, default 2", minimum: 0.01, maximum: 4 }));
 
 async function render(client: Ctx["client"], key: string, ids: string[], format: string, scale: number | undefined, svgOpts = false) {
 	const r = await client.get(`/v1/images/${key}`, {
@@ -24,9 +24,9 @@ export function assetTools({ client }: Ctx) {
 	const screenshot = defineTool({
 		name: "figma_get_screenshot",
 		label: "Figma: screenshot",
-		description: "Render Figma nodes to an image. PNG/JPG are shown to you inline (up to 4) and saved to disk; SVG/PDF are saved only. Use it to see the design and to compare against your implementation.",
+		description: "Render nodes to images (default png). PNG/JPG are shown to you (up to 4) and saved; SVG/PDF are only saved.",
 		promptSnippet: "Render Figma nodes as images you can look at",
-		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS, format: FORMAT, scale: SCALE, dir: Type.Optional(Type.String({ description: "Where to save (default: temp dir)" })) }),
+		parameters: Type.Object({ file: FILE, node_ids: NODE_IDS, format: FORMAT, scale: SCALE, dir: Type.Optional(Type.String({ description: "default: temp dir" })) }),
 		async execute(_id, p, _s, _u, ctx) {
 			const { ref, ids } = target(p.file, p.node_ids);
 			if (!ids.length) throw new Error("No node id. Pass node_ids or a URL with ?node-id=.");
@@ -57,13 +57,13 @@ export function assetTools({ client }: Ctx) {
 	const assets = defineTool({
 		name: "figma_download_assets",
 		label: "Figma: download assets",
-		description: "Export nodes (icons, illustrations, image-filled frames) into the project as files. Use svg for icons, png/jpg (scale 2-3) for raster artwork.",
+		description: "Export nodes (icons, illustrations, image frames) into the project as files (default svg).",
 		parameters: Type.Object({
 			file: FILE,
-			assets: Type.Array(Type.Object({ node_id: Type.String(), filename: Type.Optional(Type.String({ description: "Without extension" })) }), { minItems: 1 }),
+			assets: Type.Array(Type.Object({ node_id: Type.String(), filename: Type.Optional(Type.String({ description: "no extension" })) }), { minItems: 1 }),
 			format: FORMAT,
 			scale: SCALE,
-			dir: Type.Optional(Type.String({ description: "Output dir, relative to cwd (default ./assets)" })),
+			dir: Type.Optional(Type.String({ description: "default ./assets" })),
 		}),
 		async execute(_id, p, _s, _u, ctx) {
 			const { ref } = target(p.file);
@@ -88,7 +88,7 @@ export function assetTools({ client }: Ctx) {
 	const fills = defineTool({
 		name: "figma_download_image_fills",
 		label: "Figma: download image fills",
-		description: "Download original bitmap images used as fills in a file (by imageRef hash from the design context). Without refs, lists all available refs.",
+		description: "Download original fill bitmaps by imageRef (from design context) to ./assets by default. Without refs, lists them.",
 		parameters: Type.Object({ file: FILE, refs: Type.Optional(Type.Array(Type.String())), dir: Type.Optional(Type.String()) }),
 		async execute(_id, p, _s, _u, ctx) {
 			const { ref } = target(p.file);

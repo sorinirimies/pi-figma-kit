@@ -114,6 +114,9 @@ test("/figma command", async () => {
 	await commands.figma.handler("whoami", ctx);
 	await commands.figma.handler("team https://www.figma.com/files/team/42/x", ctx);
 	await commands.figma.handler("teams", ctx);
+	await commands.figma.handler("tools", ctx);
+	expect(notes.at(-1)).toStartWith("33 figma tools");
+	notes.pop();
 	await commands.figma.handler("implement https://figma.com/design/AbC123xyz90/x?node-id=1-2 make it blue", ctx);
 	await commands.figma.handler("open nonsense", ctx);
 	await commands.figma.handler("bogus", ctx);

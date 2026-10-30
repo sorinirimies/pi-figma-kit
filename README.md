@@ -179,6 +179,7 @@ These talk to Figma's own MCP server running in the desktop app (default `http:/
 /figma whoami                checks the REST token and whether the desktop bridge is reachable
 /figma team <id|url>         add a team to the browser
 /figma teams                 list configured teams
+/figma tools                 list all figma_* tools (read / write)
 /figma open <url>            the agent inspects and summarizes a link
 /figma implement <url> [instructions]   fetch the design and implement it in the current project
 ```

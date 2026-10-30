@@ -8,7 +8,7 @@ export function browseTools({ client }: Ctx) {
 	const whoami = defineTool({
 		name: "figma_whoami",
 		label: "Figma: who am I",
-		description: "Show the authenticated Figma user (checks the token works).",
+		description: "The authenticated Figma user (token check).",
 		parameters: Type.Object({}),
 		async execute() {
 			const me = await client.get("/v1/me");
@@ -19,7 +19,7 @@ export function browseTools({ client }: Ctx) {
 	const parse = defineTool({
 		name: "figma_parse_url",
 		label: "Figma: parse URL",
-		description: "Extract file key and node id from a Figma URL (no network).",
+		description: "File key and node id of a Figma URL (offline).",
 		parameters: Type.Object({ url: Type.String() }),
 		async execute(_id, p) {
 			const r = parseFigmaRef(p.url);
@@ -30,7 +30,7 @@ export function browseTools({ client }: Ctx) {
 	const projects = defineTool({
 		name: "figma_list_projects",
 		label: "Figma: team projects",
-		description: "List the projects of a team. The team id is in the team URL: figma.com/files/team/<TEAM_ID>/...",
+		description: "Projects of a team (id from figma.com/files/team/<ID>).",
 		parameters: Type.Object({ team_id: Type.String() }),
 		async execute(_id, p) {
 			const r = await client.get(`/v1/teams/${p.team_id}/projects`);
@@ -41,7 +41,7 @@ export function browseTools({ client }: Ctx) {
 	const files = defineTool({
 		name: "figma_list_files",
 		label: "Figma: project files",
-		description: "List the files in a project (key, name, last modified, URL).",
+		description: "Files of a project (key, name, modified, URL).",
 		parameters: Type.Object({ project_id: Type.String(), branch_data: Type.Optional(Type.Boolean()) }),
 		async execute(_id, p) {
 			const r = await client.get(`/v1/projects/${p.project_id}/files`, { branch_data: p.branch_data });
@@ -52,7 +52,7 @@ export function browseTools({ client }: Ctx) {
 	const comments = defineTool({
 		name: "figma_get_comments",
 		label: "Figma: comments",
-		description: "Read comments on a file (author, text, resolved state, anchored node).",
+		description: "Comments on a file (author, text, replies, node).",
 		parameters: Type.Object({ file: FILE, include_resolved: Type.Optional(Type.Boolean()) }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);
@@ -74,12 +74,12 @@ export function browseTools({ client }: Ctx) {
 	const postComment = defineTool({
 		name: "figma_post_comment",
 		label: "Figma: post comment",
-		description: "Post a comment on a file, optionally anchored to a node or as a reply. Visible to collaborators; only do this when asked.",
+		description: "WRITE: post a comment, on a node or as a reply. Visible to collaborators.",
 		parameters: Type.Object({
 			file: FILE,
 			message: Type.String(),
 			node_id: Type.Optional(Type.String()),
-			reply_to: Type.Optional(Type.String({ description: "Comment id" })),
+			reply_to: Type.Optional(Type.String({ description: "comment id" })),
 		}),
 		async execute(_id, p) {
 			const { ref, ids } = target(p.file, p.node_id ? [p.node_id] : undefined);
@@ -94,7 +94,7 @@ export function browseTools({ client }: Ctx) {
 	const versions = defineTool({
 		name: "figma_get_versions",
 		label: "Figma: version history",
-		description: "Version history of a file (id, date, label, author).",
+		description: "Version history of a file.",
 		parameters: Type.Object({ file: FILE, limit: Type.Optional(Type.Number({ default: 20 })) }),
 		async execute(_id, p) {
 			const { ref } = target(p.file);

@@ -28,7 +28,8 @@ export default function figmaExtension(pi: ExtensionAPI) {
 	const mcp = new McpClient({ url: () => process.env.FIGMA_MCP_URL || config.desktopUrl });
 	// Tools read the saved config lazily on first use so registration stays synchronous.
 	const ready = loadConfig().then((c) => Object.assign(config, c));
-	for (const tool of allTools({ client, mcp })) {
+	const tools = allTools({ client, mcp });
+	for (const tool of tools) {
 		const exec = tool.execute;
 		pi.registerTool({ ...tool, execute: async (...a: Parameters<typeof exec>) => (await ready, exec(...a)) } as typeof tool);
 	}
@@ -39,7 +40,7 @@ export default function figmaExtension(pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			await ready;
 			try {
-				await runCommand(args, { pi, client, mcp, config }, ctx);
+				await runCommand(args, { pi, client, mcp, config, tools }, ctx);
 			} catch (e) {
 				ctx.ui.notify(`figma: ${(e as Error).message}`, "error");
 			}
