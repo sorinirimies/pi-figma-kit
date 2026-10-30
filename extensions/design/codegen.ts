@@ -1,6 +1,6 @@
 /** Deterministic DNode -> markup scaffolds (HTML+CSS, React, Tailwind). The model refines them to project conventions. */
 import type { Css } from "./css.ts";
-import type { DNode } from "./simplify.ts";
+import { type DNode, withVars } from "./simplify.ts";
 
 export type Framework = "html" | "react" | "tailwind";
 export interface GenOptions {
@@ -64,7 +64,7 @@ export function generate(root: DNode, o: GenOptions): { code: string; css?: stri
 
 	const emit = (d: DNode, indent: number): string => {
 		const pad = "  ".repeat(indent);
-		const css = fixImg(d.css, dir);
+		const css = fixImg(withVars(d), dir);
 		const cls = name(d.name);
 		const attrs = ((): string => {
 			if (o.framework === "tailwind") return ` className="${twClass(css)}"`;

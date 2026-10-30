@@ -4,7 +4,7 @@ import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { type Framework, generate } from "../design/codegen.ts";
 import { generateCompose } from "../design/compose.ts";
 import { type DNode, collectAssets, countNodes, outline, simplify } from "../design/simplify.ts";
-import { type Ctx, FILE, NODE_IDS, fetchNodes, nodeUrl, target, text } from "./util.ts";
+import { type Ctx, FILE, NODE_IDS, fetchNodes, nodeUrl, target, text, tokenSource } from "./util.ts";
 
 const DEPTH = Type.Optional(Type.Number({ description: "default 6", minimum: 0, maximum: 30 }));
 const MAX_NODES = Type.Optional(Type.Number({ description: "per root, default 400", minimum: 1, maximum: 5000 }));
@@ -63,10 +63,11 @@ export function readTools({ client }: Ctx) {
 			const { ref, ids } = target(p.file, p.node_ids);
 			needNode(ids);
 			const r = await fetchNodes(client, ref.key, ids);
-			const trees = r.docs.map((d) => simplify(d, { depth: p.depth, maxNodes: p.max_nodes, components: r.components, styles: r.styles }));
+			const tok = await tokenSource(client, ref.key, r.docs);
+			const trees = r.docs.map((d) => simplify(d, { depth: p.depth, maxNodes: p.max_nodes, components: r.components, styles: r.styles, varNames: tok.names }));
 			const body = p.format === "json" ? JSON.stringify(trees) : trees.map((t) => outline(t)).join("\n\n");
 			const missing = r.missing.length ? `\nNot found: ${r.missing.join(", ")}` : "";
-			return text(`${body}${assetHints(ref.key, trees)}${missing}`, { nodes: trees.reduce((a, t) => a + countNodes(t), 0) });
+			return text(`${body}${assetHints(ref.key, trees)}${missing}${tok.note}`, { nodes: trees.reduce((a, t) => a + countNodes(t), 0) });
 		},
 	});
 
@@ -90,16 +91,17 @@ export function readTools({ client }: Ctx) {
 			needNode(ids);
 			const r = await fetchNodes(client, ref.key, [ids[0]!]);
 			if (!r.docs[0]) throw new Error(`Node ${ids[0]} not found`);
-			const tree = simplify(r.docs[0], { depth: p.depth, maxNodes: p.max_nodes, components: r.components, styles: r.styles });
+			const tok = await tokenSource(client, ref.key, [r.docs[0]]);
+			const tree = simplify(r.docs[0], { depth: p.depth, maxNodes: p.max_nodes, components: r.components, styles: r.styles, varNames: tok.names });
 			const fw = p.framework ?? "react";
 			if (fw === "compose") {
 				const k = generateCompose(tree, p.component_name);
-				return text(`## compose (${countNodes(tree)} nodes)\n\`\`\`kotlin\n${k.imports.map((i) => `import ${i}`).join("\n")}\n\n${k.code}\`\`\`${assetHints(ref.key, [tree])}\n\nNote: R.drawable.* names match the exported asset file names (svg → vector drawable via Android Studio import).`, { framework: fw });
+				return text(`## compose (${countNodes(tree)} nodes)\n\`\`\`kotlin\n${k.imports.map((i) => `import ${i}`).join("\n")}\n\n${k.code}\`\`\`${assetHints(ref.key, [tree])}\n\nNote: R.drawable.* names match the exported asset file names (svg → vector drawable via Android Studio import).${tok.note}`, { framework: fw });
 			}
 			const out = generate(tree, { framework: fw as Framework, assetsDir: p.assets_dir, componentName: p.component_name });
 			const parts = [`## ${fw} (${countNodes(tree)} nodes)`, "```" + (fw === "html" ? "html" : "tsx"), out.code, "```"];
 			if (out.css) parts.push("## CSS", "```css", out.css, "```");
-			return text(parts.join("\n") + assetHints(ref.key, [tree]) + "\n\nNote: `url(./assets/<ref>.png)` backgrounds correspond to image fills; svg <img> srcs to icon exports.", { framework: fw });
+			return text(parts.join("\n") + assetHints(ref.key, [tree]) + "\n\nNote: `url(./assets/<ref>.png)` backgrounds correspond to image fills; svg <img> srcs to icon exports." + (`${out.code}${out.css ?? ""}`.includes("var(--") ? " var(--token, value) = a Figma variable or style; define them with figma_export_tokens." : "") + tok.note, { framework: fw });
 		},
 	});
 

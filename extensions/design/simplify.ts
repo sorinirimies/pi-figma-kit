@@ -1,4 +1,5 @@
 /** Figma node tree -> compact design tree (DNode) that is cheap for an LLM to read and to generate code from. */
+import { type VarNames, bindTokens } from "./bindings.ts";
 import { type Css, type FNode, cssString, nodeCss, textCss } from "./css.ts";
 
 export interface DNode {
@@ -6,6 +7,8 @@ export interface DNode {
 	name: string;
 	type: string;
 	css: Css;
+	/** Token-bound values of `css` as `var(--token, literal)`; apply on top of `css` for CSS output. */
+	vars?: Css;
 	/** Component the instance comes from. */
 	component?: string;
 	/** Named Figma styles applied (fill/text/effect...). */
@@ -28,6 +31,8 @@ export interface SimplifyOptions {
 	/** id -> {name} maps from the API response. */
 	components?: Record<string, FNode>;
 	styles?: Record<string, FNode>;
+	/** Variable id -> name, to emit bound variables as var(--name, value). */
+	varNames?: VarNames;
 }
 
 const VECTORS = new Set(["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", "LINE", "REGULAR_POLYGON"]);
@@ -57,8 +62,12 @@ export function simplify(root: FNode, o: SimplifyOptions = {}): DNode {
 		} else if (isIcon(node)) {
 			d.css = nodeCss(node, { parent });
 			d.asset = "svg";
+			const vars = bindTokens(node, d.css, { names: o.varNames, styles: o.styles });
+			if (Object.keys(vars).length) d.vars = vars;
 			return d;
 		} else d.css = nodeCss(node, { parent });
+		const vars = bindTokens(node, d.css, { names: o.varNames, styles: o.styles });
+		if (Object.keys(vars).length) d.vars = vars;
 
 		if (node.componentId) d.component = o.components?.[node.componentId]?.name ?? node.componentId;
 		if (node.styles && o.styles) {
@@ -129,7 +138,7 @@ export function outline(d: DNode, indent = 0): string {
 	if (d.imageRef) bits.push(`[image:${d.imageRef}]`);
 	if (d.text !== undefined) bits.push(`text=${JSON.stringify(d.text.length > 200 ? d.text.slice(0, 200) + "…" : d.text)}`);
 	if (d.styles) bits.push(`styles=${JSON.stringify(d.styles)}`);
-	const css = cssString(d.css);
+	const css = cssString(withVars(d));
 	if (css) bits.push(`{ ${css} }`);
 	if (d.truncated) bits.push("(…children truncated)");
 	const lines = [bits.join(" ")];
@@ -137,3 +146,6 @@ export function outline(d: DNode, indent = 0): string {
 	for (const c of d.children ?? []) lines.push(outline(c, indent + 1));
 	return lines.join("\n");
 }
+
+/** CSS with token-bound values as var(--token, literal). */
+export const withVars = (d: DNode): Css => (d.vars ? { ...d.css, ...d.vars } : d.css);

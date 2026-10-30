@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
-import type { FigmaClient } from "../core/api.ts";
+import { type FigmaClient, FigmaError } from "../core/api.ts";
+import { type VarNames, hasBoundVariables } from "../design/bindings.ts";
 import type { McpClient } from "../core/mcp.ts";
 import { type FigmaRef, normalizeIds, parseFigmaRef } from "../core/url.ts";
 
@@ -106,4 +107,34 @@ export function summarizeVariablesBody(body: Record<string, unknown>): string {
 		return `${v.length} ${k}${actions.size ? ` (${[...actions].map(([a, n]) => `${n} ${a}`).join(", ")})` : ""}`;
 	});
 	return parts.join(", ") || "empty body";
+}
+
+/** Files whose variables this client could not read (403: not Enterprise / missing scope), so we stop asking. */
+const noVariables = new WeakMap<FigmaClient, Set<string>>();
+
+export interface TokenSource {
+	names?: VarNames;
+	/** One line for the output when bound variables exist but their names are unavailable. */
+	note: string;
+}
+
+/**
+ * Variable names for the bound variables in `docs`. Fetched only when something is bound; a 403/404 is
+ * remembered per file and reported as a note (styles still provide token names).
+ */
+export async function tokenSource(client: FigmaClient, key: string, docs: Record<string, any>[]): Promise<TokenSource> {
+	if (!docs.some(hasBoundVariables)) return { note: "" };
+	const denied = noVariables.get(client) ?? new Set<string>();
+	noVariables.set(client, denied);
+	const note = "\nNote: nodes use Figma variables, but their names need file_variables:read (Enterprise). Values are literal; named styles still appear as var(--style-name).";
+	if (denied.has(key)) return { note };
+	try {
+		const r = await client.get(`/v1/files/${key}/variables/local`);
+		const vars: Record<string, { name: string }> = r.meta?.variables ?? {};
+		return { names: (id) => vars[id]?.name, note: "" };
+	} catch (e) {
+		if (!(e instanceof FigmaError) || (e.status !== 403 && e.status !== 404)) throw e;
+		denied.add(key);
+		return { note };
+	}
 }

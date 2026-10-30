@@ -1,5 +1,6 @@
 /** DNode -> Jetpack Compose scaffold (Column/Row/Box + Modifier chains, Text, Icon/Image). */
 import type { DNode } from "./simplify.ts";
+import { varNames } from "./bindings.ts";
 import { pascal, slug } from "./codegen.ts";
 
 const num = (v: string | undefined): number | undefined => {
@@ -120,6 +121,8 @@ export function generateCompose(root: DNode, name = pascal(root.name)): ComposeR
 
 	const emit = (d: DNode, indent: number, parent: "Column" | "Row" | "Box" | undefined): string => {
 		const notes: string[] = [];
+		const tokens = varNames(d.vars);
+		if (tokens.length) notes.push(`// tokens: ${tokens.join(", ")}`);
 		const out = emitNode(d, indent, parent, notes);
 		const pad = "    ".repeat(indent);
 		return notes.length ? `${notes.map((x) => `${pad}${x}`).join("\n")}\n${out}` : out;
