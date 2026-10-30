@@ -48,6 +48,6 @@
   },
   "homepage": "https://github.com/sorinirimies/pi-figma-kit#readme",
   "dependencies": {
-    "arrow-resilience-kit": "file:../arrow-resilience-kit/build/dist/js/productionLibrary"
+    "arrow-resilience-kit": "^0.10.0"
   }
 }

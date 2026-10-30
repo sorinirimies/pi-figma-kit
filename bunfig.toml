@@ -6,6 +6,6 @@ coverage = true
 coverageReporter = ["text", "lcov"]
 coverageDir = "coverage"
 coverageThreshold = { lines = 0.95, functions = 0.95 }
-# Only this project's code counts: dependencies (even when linked from a local checkout, which
-# Bun resolves to their real path outside node_modules) are not ours to cover.
-coveragePathIgnorePatterns = ["**/node_modules/**", "**/arrow-resilience-kit/**"]
+# Only this project's code counts. (A dependency linked from a local checkout via `file:` resolves
+# outside node_modules; add its path here while testing such a link.)
+coveragePathIgnorePatterns = ["**/node_modules/**"]
