@@ -3,21 +3,50 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { StringEnum, Type } from "@earendil-works/pi-ai";
-import { type Ctx, FILE, NODE_IDS, resolveDir, safeName, saveBytes, target, text } from "./util.ts";
+import { slug } from "../design/codegen.ts";
+import { type Ctx, FILE, NODE_IDS, chunks, imageExt, mapLimit, resolveDir, safeName, saveBytes, target, text } from "./util.ts";
+
+/** Parallel downloads per call; Figma's image CDN handles this fine, the REST API is not involved. */
+const PARALLEL = 6;
+/** Ids per render request, keeps the query string well under URL length limits. */
+const RENDER_BATCH = 50;
 
 const FORMAT = Type.Optional(StringEnum(["png", "jpg", "svg", "pdf"]));
 const SCALE = Type.Optional(Type.Number({ description: "png/jpg, default 2", minimum: 0.01, maximum: 4 }));
 
 async function render(client: Ctx["client"], key: string, ids: string[], format: string, scale: number | undefined, svgOpts = false) {
-	const r = await client.get(`/v1/images/${key}`, {
-		ids: ids.join(","),
-		format,
-		scale: format === "svg" || format === "pdf" ? undefined : scale ?? 2,
-		svg_outline_text: svgOpts ? true : undefined,
-		svg_include_id: undefined,
-	});
-	if (r.err) throw new Error(`Figma render error: ${r.err}`);
-	return (r.images ?? {}) as Record<string, string | null>;
+	const out: Record<string, string | null> = {};
+	for (const batch of chunks(ids, RENDER_BATCH)) {
+		const r = await client.get(`/v1/images/${key}`, {
+			ids: batch.join(","),
+			format,
+			scale: format === "svg" || format === "pdf" ? undefined : scale ?? 2,
+			svg_outline_text: svgOpts ? true : undefined,
+			svg_include_id: undefined,
+		});
+		if (r.err) throw new Error(`Figma render error: ${r.err}`);
+		Object.assign(out, r.images ?? {});
+	}
+	return out;
+}
+
+/**
+ * Default file names = slug of the node name, the same name figma_generate_code references
+ * (`./assets/<slug>.svg`, `R.drawable.<slug_>`). Repeated names get -2, -3 … in request order.
+ */
+async function defaultNames(client: Ctx["client"], key: string, ids: string[]): Promise<Record<string, string>> {
+	if (!ids.length) return {};
+	const r = await client.get(`/v1/files/${key}/nodes`, { ids: ids.join(","), depth: 0 });
+	const used = new Map<string, number>();
+	const out: Record<string, string> = {};
+	for (const id of ids) {
+		const name = r.nodes?.[id]?.document?.name;
+		const base = name ? slug(name) : safeName(id);
+		const k = (used.get(base) ?? 0) + 1;
+		used.set(base, k);
+		out[id] = k > 1 ? `${base}-${k}` : base;
+	}
+	return out;
 }
 
 export function assetTools({ client }: Ctx) {
@@ -33,22 +62,22 @@ export function assetTools({ client }: Ctx) {
 			const format = p.format ?? "png";
 			const urls = await render(client, ref.key, ids, format, p.scale);
 			const dir = resolveDir(ctx.cwd, p.dir, join(tmpdir(), "pi-figma", ref.key));
+			const saved = await mapLimit(ids, PARALLEL, async (id) => {
+				const url = urls[id];
+				if (!url) return { id };
+				const { bytes, mime } = await client.download(url);
+				return { id, bytes, mime, path: await saveBytes(dir, `${safeName(id)}.${format}`, bytes) };
+			});
 			const content: any[] = [];
 			const lines: string[] = [];
-			let shown = 0;
-			for (const id of ids) {
-				const url = urls[id];
-				if (!url) {
-					lines.push(`#${id}: not renderable (missing, hidden or empty)`);
+			for (const r of saved) {
+				if (!r.path) {
+					lines.push(`#${r.id}: not renderable (missing, hidden or empty)`);
 					continue;
 				}
-				const { bytes, mime } = await client.download(url);
-				const path = await saveBytes(dir, `${safeName(id)}.${format}`, bytes);
-				lines.push(`#${id} → ${path}`);
-				if ((format === "png" || format === "jpg") && shown < 4) {
-					content.push({ type: "image", data: Buffer.from(bytes).toString("base64"), mimeType: format === "jpg" ? "image/jpeg" : mime.startsWith("image/") ? mime : "image/png" });
-					shown++;
-				}
+				lines.push(`#${r.id} → ${r.path}`);
+				if ((format === "png" || format === "jpg") && content.length < 4)
+					content.push({ type: "image", data: Buffer.from(r.bytes!).toString("base64"), mimeType: format === "jpg" ? "image/jpeg" : r.mime!.startsWith("image/") ? r.mime : "image/png" });
 			}
 			return { content: [{ type: "text" as const, text: lines.join("\n") }, ...content], details: { dir } };
 		},
@@ -60,7 +89,7 @@ export function assetTools({ client }: Ctx) {
 		description: "Export nodes (icons, illustrations, image frames) into the project as files (default svg).",
 		parameters: Type.Object({
 			file: FILE,
-			assets: Type.Array(Type.Object({ node_id: Type.String(), filename: Type.Optional(Type.String({ description: "no extension" })) }), { minItems: 1 }),
+			assets: Type.Array(Type.Object({ node_id: Type.String(), filename: Type.Optional(Type.String({ description: "no extension; default: node name slug" })) }), { minItems: 1 }),
 			format: FORMAT,
 			scale: SCALE,
 			dir: Type.Optional(Type.String({ description: "default ./assets" })),
@@ -71,16 +100,13 @@ export function assetTools({ client }: Ctx) {
 			const items = p.assets.map((a) => ({ ...a, node_id: target(ref.key, [a.node_id]).ids[0]! }));
 			const urls = await render(client, ref.key, items.map((a) => a.node_id), format, p.scale);
 			const dir = resolveDir(ctx.cwd, p.dir, "assets");
-			const lines: string[] = [];
-			for (const a of items) {
+			const names = await defaultNames(client, ref.key, items.filter((a) => !a.filename).map((a) => a.node_id));
+			const lines = await mapLimit(items, PARALLEL, async (a) => {
 				const url = urls[a.node_id];
-				if (!url) {
-					lines.push(`#${a.node_id}: not renderable`);
-					continue;
-				}
+				if (!url) return `#${a.node_id}: not renderable`;
 				const { bytes } = await client.download(url);
-				lines.push(`#${a.node_id} → ${await saveBytes(dir, `${safeName(a.filename ?? a.node_id)}.${format}`, bytes)}`);
-			}
+				return `#${a.node_id} → ${await saveBytes(dir, `${safeName(a.filename ?? names[a.node_id]!)}.${format}`, bytes)}`;
+			});
 			return text(lines.join("\n"), { dir });
 		},
 	});
@@ -96,16 +122,14 @@ export function assetTools({ client }: Ctx) {
 			const map: Record<string, string> = r.meta?.images ?? {};
 			if (!p.refs?.length) return text(`${Object.keys(map).length} image fills:\n${Object.keys(map).join("\n")}`);
 			const dir = resolveDir(ctx.cwd, p.dir, "assets");
-			const lines: string[] = [];
-			for (const h of p.refs) {
+			const lines = await mapLimit(p.refs, PARALLEL, async (h) => {
 				const url = map[h];
-				if (!url) {
-					lines.push(`${h}: not found`);
-					continue;
-				}
-				const { bytes } = await client.download(url);
-				lines.push(`${h} → ${await saveBytes(dir, `${safeName(h)}.png`, bytes)}`);
-			}
+				if (!url) return `${h}: not found`;
+				const { bytes, mime } = await client.download(url);
+				const ext = imageExt(mime);
+				const path = await saveBytes(dir, `${safeName(h)}.${ext}`, bytes);
+				return `${h} → ${path}${ext === "png" ? "" : ` (${ext}: update generated url(…/${h}.png) references)`}`;
+			});
 			return text(lines.join("\n"), { dir });
 		},
 	});

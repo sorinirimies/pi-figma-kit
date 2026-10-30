@@ -67,3 +67,23 @@ export async function saveBytes(dir: string, file: string, bytes: Uint8Array): P
 }
 
 export const safeName = (s: string) => s.replace(/[^\w.\-]+/g, "_").replace(/^_+|_+$/g, "") || "asset";
+
+/** Map with at most `limit` calls in flight; results keep the input order. */
+export async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
+	const out = new Array<R>(items.length);
+	let next = 0;
+	const worker = async () => {
+		while (next < items.length) {
+			const i = next++;
+			out[i] = await fn(items[i]!, i);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+	return out;
+}
+
+export const chunks = <T>(xs: readonly T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
+
+/** File extension for a downloaded image's content type. */
+export const imageExt = (mime: string, fallback = "png"): string =>
+	({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg" })[mime.split(";")[0]!.trim().toLowerCase()] ?? fallback;
