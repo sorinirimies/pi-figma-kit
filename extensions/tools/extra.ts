@@ -3,7 +3,7 @@ import { defineTool } from "@earendil-works/pi-coding-agent";
 import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { collectFlows, renderFlows } from "../design/flows.ts";
 import { fromStyles, fromVariables, toCss, toJson, toTailwind, type TokenSet } from "../design/tokens.ts";
-import { type Ctx, FILE, NODE_IDS, fetchNodes, nodeUrl, target, text } from "./util.ts";
+import { type Ctx, FILE, NODE_IDS, confirmWrite, fetchNodes, nodeUrl, summarizeVariablesBody, target, text } from "./util.ts";
 
 export function extraTools({ client }: Ctx) {
 	const meta = defineTool({
@@ -75,8 +75,9 @@ export function extraTools({ client }: Ctx) {
 		label: "Figma: update variables (write)",
 		description: "WRITE: POST /v1/files/:key/variables, raw body {variableCollections?, variableModes?, variables?, variableModeValues?}. Needs file_variables:write (Enterprise).",
 		parameters: Type.Object({ file: FILE, body: Type.Record(Type.String(), Type.Unknown()) }),
-		async execute(_id, p) {
+		async execute(_id, p, _s, _u, ctx) {
 			const { ref } = target(p.file);
+			await confirmWrite(ctx, "Update Figma variables?", `File ${ref.key}: ${summarizeVariablesBody(p.body)}. This changes the design file for everyone.`);
 			const r = await client.post(`/v1/files/${ref.key}/variables`, p.body);
 			client.clearCache();
 			return text(JSON.stringify(r.meta ?? r));
@@ -185,8 +186,9 @@ export function extraTools({ client }: Ctx) {
 		label: "Figma: delete comment (write)",
 		description: "WRITE: delete one of your comments.",
 		parameters: Type.Object({ file: FILE, comment_id: Type.String() }),
-		async execute(_id, p) {
+		async execute(_id, p, _s, _u, ctx) {
 			const { ref } = target(p.file);
+			await confirmWrite(ctx, "Delete Figma comment?", `Comment ${p.comment_id} in file ${ref.key} will be deleted.`);
 			await client.request("DELETE", `/v1/files/${ref.key}/comments/${p.comment_id}`);
 			return text(`Deleted comment ${p.comment_id}`);
 		},

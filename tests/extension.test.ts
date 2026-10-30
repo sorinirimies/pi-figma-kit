@@ -299,3 +299,17 @@ test("tool calls run inside their abort signal", async () => {
 	await expect(tools.figma_whoami.execute("id", {}, ac.signal, undefined, { cwd: tmpdir() })).rejects.toThrow("cancelled by user");
 	expect(txt(await run("figma_whoami", {}))).toContain("me");
 });
+
+test("destructive writes ask first when there is a UI", async () => {
+	const asked: string[] = [];
+	const ui = (answer: boolean) => ({ cwd: tmpdir(), hasUI: true, ui: { confirm: async (t: string, m: string) => (asked.push(`${t} ${m}`), answer) } });
+	const body = { variables: [{ action: "CREATE" }, { action: "UPDATE" }, { action: "CREATE" }], variableModeValues: [{}], note: "x" };
+	const before = calls.length;
+	await expect(tools.figma_update_variables.execute("id", { file: KEY, body }, undefined, undefined, ui(false))).rejects.toThrow(/Cancelled by the user/);
+	await expect(tools.figma_delete_comment.execute("id", { file: KEY, comment_id: "c1" }, undefined, undefined, ui(false))).rejects.toThrow(/nothing was changed/);
+	expect(calls.length).toBe(before); // nothing sent
+	expect(asked[0]).toContain("3 variables (2 CREATE, 1 UPDATE), 1 variableModeValues, note");
+	expect(asked[1]).toContain("Comment c1");
+	expect(txt(await tools.figma_update_variables.execute("id", { file: KEY, body: {} }, undefined, undefined, ui(true)))).toContain("ok");
+	expect(asked[2]).toContain("empty body");
+});

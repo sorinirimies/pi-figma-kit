@@ -87,3 +87,23 @@ export const chunks = <T>(xs: readonly T[], n: number): T[][] => Array.from({ le
 /** File extension for a downloaded image's content type. */
 export const imageExt = (mime: string, fallback = "png"): string =>
 	({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg" })[mime.split(";")[0]!.trim().toLowerCase()] ?? fallback;
+
+/**
+ * Ask before a destructive Figma write when a user is there to ask. Headless runs (print/RPC without UI)
+ * proceed: the tool is annotated destructive, so permission extensions can gate it there.
+ */
+export async function confirmWrite(ctx: { hasUI?: boolean; ui?: { confirm(title: string, message: string): Promise<boolean> } } | undefined, title: string, message: string) {
+	if (!ctx?.hasUI || !ctx.ui) return;
+	if (!(await ctx.ui.confirm(title, message))) throw new Error("Cancelled by the user; nothing was changed in Figma.");
+}
+
+/** "2 variables (1 CREATE, 1 UPDATE), 1 variableModeValues" for a POST /variables body. */
+export function summarizeVariablesBody(body: Record<string, unknown>): string {
+	const parts = Object.entries(body).map(([k, v]) => {
+		if (!Array.isArray(v)) return k;
+		const actions = new Map<string, number>();
+		for (const x of v) if (x && typeof x === "object" && "action" in x) actions.set(String(x.action), (actions.get(String(x.action)) ?? 0) + 1);
+		return `${v.length} ${k}${actions.size ? ` (${[...actions].map(([a, n]) => `${n} ${a}`).join(", ")})` : ""}`;
+	});
+	return parts.join(", ") || "empty body";
+}
