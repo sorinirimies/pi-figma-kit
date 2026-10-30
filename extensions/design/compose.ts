@@ -42,7 +42,13 @@ const ALIGN_H: Record<string, string> = { center: "CenterHorizontally", "flex-en
 function modifier(d: DNode, parentKind: "Column" | "Row" | "Box" | undefined, notes: string[] = []): string[] {
 	const c = d.css;
 	const m: string[] = [];
-	if (c.position === "absolute" && num(c.left) !== undefined) m.push(`offset(${dp(num(c.left)!)}, ${dp(num(c.top) ?? 0)})`);
+	if (c.position === "absolute") {
+		if (num(c.left) !== undefined && num(c.top) !== undefined) m.push(`offset(${dp(num(c.left)!)}, ${dp(num(c.top)!)})`);
+		else {
+			const at = ["left", "right", "top", "bottom"].filter((k) => c[k]).map((k) => `${k}: ${c[k]}`).join(", ");
+			notes.push(`// TODO: constrained position (${at}) → Modifier.align(…) + padding/offset in the parent Box`);
+		}
+	}
 	const w = num(c.width);
 	const h = num(c.height);
 	let fillW = false;

@@ -4,6 +4,7 @@ export type FNode = Record<string, any>;
 
 export const n = (v: number): string => String(Math.round(v * 100) / 100);
 export const px = (v: number): string => `${n(v)}px`;
+export const pct = (v: number): string => `${n(v * 100)}%`;
 
 export function color(c: { r: number; g: number; b: number; a?: number } | null | undefined, opacity = 1): string {
 	if (!c) return "transparent";
@@ -30,10 +31,20 @@ export function paintLayer(p: FNode): string | undefined {
 			return `linear-gradient(${n((deg + 360) % 360)}deg, ${stops(p)})`;
 		}
 		case "GRADIENT_RADIAL":
-		case "GRADIENT_DIAMOND":
-			return `radial-gradient(circle, ${stops(p)})`;
-		case "GRADIENT_ANGULAR":
-			return `conic-gradient(${stops(p)})`;
+		case "GRADIENT_DIAMOND": {
+			// Handles (node-relative 0..1): center, end of the first radius, end of the second radius.
+			const [c, h1, h2] = p.gradientHandlePositions ?? [];
+			if (!c || !h1 || !h2) return `radial-gradient(circle, ${stops(p)})`;
+			const r1 = Math.hypot(h1.x - c.x, h1.y - c.y);
+			const r2 = Math.hypot(h2.x - c.x, h2.y - c.y);
+			return `radial-gradient(ellipse ${pct(r1)} ${pct(r2)} at ${pct(c.x)} ${pct(c.y)}, ${stops(p)})`;
+		}
+		case "GRADIENT_ANGULAR": {
+			const [c, h1] = p.gradientHandlePositions ?? [];
+			if (!c || !h1) return `conic-gradient(${stops(p)})`;
+			const deg = (Math.atan2(h1.x - c.x, -(h1.y - c.y)) * 180) / Math.PI;
+			return `conic-gradient(from ${n((deg + 360) % 360)}deg at ${pct(c.x)} ${pct(c.y)}, ${stops(p)})`;
+		}
 		case "IMAGE":
 			return `url(figma-image:${p.imageRef ?? "unknown"})`;
 		default:
@@ -120,6 +131,50 @@ function autoLayout(node: FNode): Css {
 	return css;
 }
 
+type Box = { x: number; y: number; width: number; height: number };
+
+/**
+ * Figma constraints -> CSS offsets along one axis. MIN/default = left/top, MAX = right/bottom,
+ * STRETCH (LEFT_RIGHT/TOP_BOTTOM) = both edges and no fixed size, CENTER = offset from the middle, SCALE = percentages.
+ */
+function anchor(bb: Box, pb: Box, constraints: FNode | undefined, css: Css): Css {
+	const out: Css = {};
+	const axis = (mode: string | undefined, start: "left" | "top", end: "right" | "bottom", size: "width" | "height", pos: number, len: number, plen: number) => {
+		const before = pos;
+		const after = plen - pos - len;
+		switch (mode) {
+			case "RIGHT":
+			case "BOTTOM":
+				out[end] = px(after);
+				break;
+			case "LEFT_RIGHT":
+			case "TOP_BOTTOM":
+				out[start] = px(before);
+				out[end] = px(after);
+				delete css[size];
+				break;
+			case "CENTER": {
+				const off = before - plen / 2; // keeps the distance from the parent's center
+				out[start] = off ? `calc(50% ${off < 0 ? "-" : "+"} ${px(Math.abs(off))})` : "50%";
+				break;
+			}
+			case "SCALE":
+				if (plen) {
+					out[start] = pct(before / plen);
+					if (css[size]) out[size] = pct(len / plen);
+					break;
+				}
+				out[start] = px(before);
+				break;
+			default:
+				out[start] = px(before);
+		}
+	};
+	axis(constraints?.horizontal, "left", "right", "width", bb.x - pb.x, bb.width, pb.width);
+	axis(constraints?.vertical, "top", "bottom", "height", bb.y - pb.y, bb.height, pb.height);
+	return out;
+}
+
 const isAuto = (n?: FNode) => !!n && !!n.layoutMode && n.layoutMode !== "NONE";
 
 export interface StyleCtx {
@@ -156,11 +211,10 @@ export function nodeCss(node: FNode, { parent }: StyleCtx = {}): Css {
 	if (node.minHeight) css["min-height"] = px(node.minHeight);
 	if (node.maxHeight) css["max-height"] = px(node.maxHeight);
 
-	// Position
+	// Position: absolute in the parent, anchored the way the Figma constraints say.
 	if (parent && !inAuto && bb && parent.absoluteBoundingBox) {
 		css.position = "absolute";
-		css.left = px(bb.x - parent.absoluteBoundingBox.x);
-		css.top = px(bb.y - parent.absoluteBoundingBox.y);
+		Object.assign(css, anchor(bb, parent.absoluteBoundingBox, node.constraints, css));
 	}
 	if (css.position !== "absolute" && !parent) css.position = css.position ?? "relative";
 

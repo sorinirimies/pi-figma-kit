@@ -48,8 +48,94 @@ const TW: Record<string, string> = {
 	"font-style:italic": "italic",
 	"border-radius:50%": "rounded-full",
 };
-const twClass = (css: Css) =>
-	Object.entries(css).map(([k, v]) => TW[`${k}:${v}`] ?? `[${k}:${v.replace(/\s+/g, "_").replace(/'/g, "")}]`).join(" ");
+/** Tailwind default spacing scale: px -> key. */
+const SPACE: Record<string, string> = Object.fromEntries(
+	[[0, "0"], [1, "px"], ...[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96].map((k) => [k * 4, String(k)])].map(([v, k]) => [`${v}px`, String(k)]),
+);
+const RADIUS: Record<string, string> = { "0px": "rounded-none", "2px": "rounded-sm", "4px": "rounded", "6px": "rounded-md", "8px": "rounded-lg", "12px": "rounded-xl", "16px": "rounded-2xl", "24px": "rounded-3xl", "50%": "rounded-full" };
+const WEIGHT: Record<string, string> = { "100": "thin", "200": "extralight", "300": "light", "400": "normal", "500": "medium", "600": "semibold", "700": "bold", "800": "extrabold", "900": "black" };
+const isColor = (v: string) => /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i.test(v);
+const arb = (v: string) => v.replace(/\s+/g, "_").replace(/'/g, "");
+
+/** One scale step (`p-4`) or a typed arbitrary value (`p-[13px]`). */
+const step = (prefix: string, v: string) => (SPACE[v] ? `${prefix}-${SPACE[v]}` : `${prefix}-[${arb(v)}]`);
+
+/** Utility classes for one declaration; undefined = no idiomatic form, use an arbitrary property. */
+function twUtil(k: string, v: string, css: Css): string | undefined {
+	if (TW[`${k}:${v}`]) return TW[`${k}:${v}`];
+	if (v.includes("var(")) return undefined; // tokens: keep the declaration explicit
+	const px1 = /^-?[\d.]+px$/.test(v);
+	switch (k) {
+		case "gap":
+		case "width":
+		case "height":
+		case "min-width":
+		case "min-height":
+		case "max-width":
+		case "max-height":
+		case "left":
+		case "right":
+		case "top":
+		case "bottom": {
+			if (!px1 && !/^[\d.]+%$/.test(v)) return undefined;
+			const pre = { gap: "gap", width: "w", height: "h", "min-width": "min-w", "min-height": "min-h", "max-width": "max-w", "max-height": "max-h", left: "left", right: "right", top: "top", bottom: "bottom" }[k];
+			return px1 ? step(pre, v) : `${pre}-[${v}]`;
+		}
+		case "padding": {
+			const p = v.split(" ");
+			if (!p.every((x) => /^[\d.]+px$/.test(x))) return undefined;
+			if (p.length === 1) return step("p", p[0]!);
+			if (p.length === 2) return `${step("py", p[0]!)} ${step("px", p[1]!)}`;
+			return `${step("pt", p[0]!)} ${step("pr", p[1]!)} ${step("pb", p[2]!)} ${step("pl", p[3]!)}`;
+		}
+		case "border-radius":
+			return RADIUS[v] ?? (px1 ? `rounded-[${v}]` : undefined);
+		case "font-weight":
+			return WEIGHT[v] ? `font-${WEIGHT[v]}` : undefined;
+		case "font-size":
+			return px1 ? `text-[${v}]` : undefined;
+		case "line-height":
+			return px1 ? `leading-[${v}]` : undefined;
+		case "letter-spacing":
+			return px1 ? `tracking-[${v}]` : undefined;
+		case "color":
+			return isColor(v) ? `text-[${arb(v)}]` : undefined;
+		case "background":
+			return isColor(v) ? `bg-[${arb(v)}]` : undefined;
+		case "opacity": {
+			const o = Math.round(Number(v) * 100);
+			return o % 5 === 0 && o >= 0 && o <= 100 && !css.transition ? `opacity-${o}` : undefined;
+		}
+		case "flex":
+			return v === "1 1 0" ? "flex-1" : undefined;
+		default:
+			return undefined;
+	}
+}
+
+const twClass = (css: Css) => Object.entries(css).map(([k, v]) => twUtil(k, v, css) ?? `[${k}:${arb(v)}]`).join(" ");
+
+/** Semantic element for a node, from its name, component and text style. */
+export function semanticTag(d: DNode, inInteractive: boolean): { tag: string; attrs: string; interactive: boolean } {
+	const label = `${d.component ?? ""} ${d.name}`.toLowerCase();
+	if (d.text !== undefined) {
+		const style = `${d.styles?.text ?? ""} ${d.name}`.toLowerCase();
+		const h = /\bh([1-6])\b/.exec(style);
+		if (h) return { tag: `h${h[1]}`, attrs: "", interactive: false };
+		if (/\b(heading|headline|title|display)\b/.test(style)) return { tag: "h2", attrs: "", interactive: false };
+		return { tag: "p", attrs: "", interactive: false };
+	}
+	if (!inInteractive && /\b(button|btn|cta)\b/.test(label)) return { tag: "button", attrs: ' type="button"', interactive: true };
+	if (!inInteractive && /\blink\b/.test(label)) return { tag: "a", attrs: ' href="#"', interactive: true };
+	for (const t of ["nav", "header", "footer"] as const) if (new RegExp(`\\b${t === "nav" ? "(nav|navbar|navigation)" : t}\\b`).test(label)) return { tag: t, attrs: "", interactive: false };
+	return { tag: "div", attrs: "", interactive: false };
+}
+
+/** Undo browser button/link styling so the design's own CSS is what you see (Tailwind's preflight does this already). */
+const RESET: Record<string, Css> = {
+	button: { appearance: "none", border: "0", padding: "0", background: "none", font: "inherit", color: "inherit", "text-align": "inherit", cursor: "pointer" },
+	a: { color: "inherit", "text-decoration": "none" },
+};
 
 const cssBlock = (sel: string, css: Css) => `.${sel} {\n${Object.entries(css).map(([k, v]) => `  ${k}: ${v};`).join("\n")}\n}`;
 
@@ -62,9 +148,11 @@ export function generate(root: DNode, o: GenOptions): { code: string; css?: stri
 	const name = namer();
 	const sheets: string[] = [];
 
-	const emit = (d: DNode, indent: number): string => {
+	const emit = (d: DNode, indent: number, inInteractive = false): string => {
 		const pad = "  ".repeat(indent);
-		const css = fixImg(withVars(d), dir);
+		const sem = d.asset ? { tag: "img", attrs: "", interactive: false } : semanticTag(d, inInteractive);
+		const own = fixImg(withVars(d), dir);
+		const css = o.framework !== "tailwind" && RESET[sem.tag] ? { ...RESET[sem.tag], ...own } : own;
 		const cls = name(d.name);
 		const attrs = ((): string => {
 			if (o.framework === "tailwind") return ` className="${twClass(css)}"`;
@@ -73,11 +161,12 @@ export function generate(root: DNode, o: GenOptions): { code: string; css?: stri
 		})();
 		if (o.framework !== "tailwind" && Object.keys(css).length) sheets.push(cssBlock(cls, css));
 
-		const tag = d.type === "TEXT" ? "p" : "div";
 		if (d.asset) {
 			const src = `${dir}/${slug(d.name)}.svg`;
 			return `${pad}<img${attrs} src="${src}" alt="${esc(d.name)}" />`;
 		}
+		const { tag } = sem;
+		const open = `${tag}${attrs}${sem.attrs}`;
 		if (d.text !== undefined) {
 			const t = o.framework === "html" ? esc : jsxText;
 			const inner = d.runs
@@ -89,11 +178,11 @@ export function generate(root: DNode, o: GenOptions): { code: string; css?: stri
 						return `<span ${o.framework === "html" ? "class" : "className"}="${c}">${t(r.text)}</span>`;
 					}).join("")
 				: t(d.text).replace(/\n/g, o.framework === "html" ? "<br>" : "<br />");
-			return `${pad}<${tag}${attrs}>${inner}</${tag}>`;
+			return `${pad}<${open}>${inner}</${tag}>`;
 		}
-		const kids = (d.children ?? []).map((c) => emit(c, indent + 1));
-		if (!kids.length) return `${pad}<${tag}${attrs}></${tag}>`;
-		return `${pad}<${tag}${attrs}>\n${kids.join("\n")}\n${pad}</${tag}>`;
+		const kids = (d.children ?? []).map((c) => emit(c, indent + 1, inInteractive || sem.interactive));
+		if (!kids.length) return `${pad}<${open}></${tag}>`;
+		return `${pad}<${open}>\n${kids.join("\n")}\n${pad}</${tag}>`;
 	};
 
 	const body = emit(root, o.framework === "react" || o.framework === "tailwind" ? 2 : 0);

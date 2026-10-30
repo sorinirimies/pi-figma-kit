@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generate } from "../extensions/design/codegen.ts";
+import { generateCompose } from "../extensions/design/compose.ts";
 import { color, fillCss, nodeCss, paintLayer } from "../extensions/design/css.ts";
 import { collectAssets, countNodes, outline, simplify } from "../extensions/design/simplify.ts";
 import { card, components, styles } from "./fixtures.ts";
@@ -89,7 +90,9 @@ describe("codegen", () => {
 		const r = generate(tree(), { framework: "tailwind" });
 		expect(r.css).toBeUndefined();
 		expect(r.code).toContain("flex flex-col");
-		expect(r.code).toContain("[gap:8px]");
+		expect(r.code).toContain("gap-2 p-4 justify-center items-center bg-[#ffffff] rounded-xl");
+		expect(r.code).toContain("[border:1px_solid_rgba(0,_0,_0,_0.1)]");
+		expect(r.code).toContain('<button className="w-[50px] h-5" type="button"></button>');
 	});
 });
 
@@ -122,11 +125,88 @@ describe("codegen extras", () => {
 		] };
 		const tw = generate(t, { framework: "tailwind" }).code;
 		expect(tw).toContain('<div className="rounded-full"></div>');
-		expect(tw).toContain('<span className="[font-weight:700]">a</span>');
+		expect(tw).toContain('<span className="font-bold">a</span>');
 		const r = generate(t, { framework: "react" });
 		expect(r.code).toContain("{'{'}b{'}'}");
 		expect(r.css).toContain("rich-run");
 		const h = generate({ ...t, children: [{ id: "3", name: "T", type: "TEXT", css: {}, text: "a\nb" }] }, { framework: "html" });
 		expect(h.code).toContain("a<br>b");
+	});
+});
+
+describe("codegen quality", () => {
+	const D = (over: any): any => ({ id: "1", name: "N", type: "FRAME", css: {}, ...over });
+	test("tailwind: scale steps, typed arbitrary values, tokens stay explicit", () => {
+		const tw = (css: Record<string, string>) => generate(D({ css }), { framework: "tailwind" }).code.match(/className="([^"]*)"/)![1];
+		expect(tw({ gap: "16px", padding: "8px 24px", width: "40px", height: "13px" })).toBe("gap-4 py-2 px-6 w-10 h-[13px]");
+		expect(tw({ padding: "1px 2px 3px 4px" })).toBe("pt-px pr-0.5 pb-[3px] pl-1");
+		expect(tw({ padding: "4px", "min-width": "0px", "max-height": "50%", left: "calc(50% - 4px)", top: "10%", right: "12px", bottom: "-4px" })).toBe("p-1 min-w-0 max-h-[50%] [left:calc(50%_-_4px)] top-[10%] right-3 bottom-[-4px]");
+		expect(tw({ padding: "var(--s, 4px) 2px" })).toBe("[padding:var(--s,_4px)_2px]");
+		expect(tw({ "border-radius": "8px", "font-weight": "600", "font-size": "14px", "line-height": "20px", "letter-spacing": "0.5px" })).toBe("rounded-lg font-semibold text-[14px] leading-[20px] tracking-[0.5px]");
+		expect(tw({ "border-radius": "10px", "font-weight": "450", "font-size": "1em", "line-height": "1.2", "letter-spacing": "1em" })).toBe("rounded-[10px] [font-weight:450] [font-size:1em] [line-height:1.2] [letter-spacing:1em]");
+		expect(tw({ "border-radius": "1px 2px 3px 4px", gap: "auto" })).toBe("[border-radius:1px_2px_3px_4px] [gap:auto]");
+		expect(tw({ color: "rgba(0, 0, 0, 0.5)", background: "linear-gradient(red, blue)" })).toBe("text-[rgba(0,_0,_0,_0.5)] [background:linear-gradient(red,_blue)]");
+		expect(tw({ background: "var(--brand, #fff)", color: "currentColor" })).toBe("[background:var(--brand,_#fff)] [color:currentColor]");
+		expect(tw({ opacity: "0.5", flex: "1 1 0" })).toBe("opacity-50 flex-1");
+		expect(tw({ opacity: "0.33", flex: "0 0 auto" })).toBe("[opacity:0.33] [flex:0_0_auto]");
+		expect(tw({ opacity: "0.5", transition: "x" })).toBe("[opacity:0.5] [transition:x]");
+	});
+
+	test("semantic tags: headings, buttons, links, landmarks; nothing interactive nested", () => {
+		const tree = D({ name: "Page", children: [
+			D({ name: "Top Nav", children: [D({ name: "Home link", children: [D({ name: "Inner button" })] })] }),
+			D({ name: "Header" }),
+			D({ name: "Site Footer" }),
+			D({ name: "Primary", component: "Button/Large", children: [D({ name: "Label", type: "TEXT", text: "Go" })] }),
+			D({ name: "Copy", type: "TEXT", text: "a", styles: { text: "Heading/H3" } }),
+			D({ name: "Headline", type: "TEXT", text: "b" }),
+			D({ name: "Body", type: "TEXT", text: "c", styles: { text: "Body/M" } }),
+		] });
+		const html = generate(tree, { framework: "html" });
+		expect(html.code).toContain('<nav class="top-nav">');
+		expect(html.code).toContain('<a class="home-link" href="#">');
+		expect(html.code).toContain('<div class="inner-button"></div>'); // no <button> inside <a>
+		expect(html.code).toContain('<header class="header">');
+		expect(html.code).toContain('<footer class="site-footer">');
+		expect(html.code).toContain('<button class="primary" type="button">');
+		expect(html.code).toContain('<h3 class="copy">a</h3>');
+		expect(html.code).toContain('<h2 class="headline">b</h2>');
+		expect(html.code).toContain('<p class="body">c</p>');
+		expect(html.css).toContain(".primary {\n  appearance: none;");
+		expect(html.css).toContain(".home-link {\n  color: inherit;");
+		expect(generate(tree, { framework: "tailwind" }).code).toContain('<button className="" type="button">'); // preflight resets
+	});
+
+	test("gradients use handle positions", () => {
+		const stops = [{ position: 0, color: { r: 0, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 1, g: 1, b: 1, a: 1 } }];
+		const h = [{ x: 0.5, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0.5, y: 0.75 }];
+		expect(paintLayer({ type: "GRADIENT_RADIAL", gradientStops: stops, gradientHandlePositions: h })).toBe("radial-gradient(ellipse 50% 25% at 50% 50%, #000000 0%, #ffffff 100%)");
+		expect(paintLayer({ type: "GRADIENT_DIAMOND", gradientStops: stops, gradientHandlePositions: h })).toStartWith("radial-gradient(ellipse 50% 25%");
+		expect(paintLayer({ type: "GRADIENT_ANGULAR", gradientStops: stops, gradientHandlePositions: h })).toBe("conic-gradient(from 90deg at 50% 50%, #000000 0%, #ffffff 100%)");
+		expect(paintLayer({ type: "GRADIENT_ANGULAR", gradientStops: stops, gradientHandlePositions: [{ x: 0, y: 0 }, { x: 0, y: -1 }] })).toStartWith("conic-gradient(from 0deg at 0% 0%");
+	});
+
+	test("constraints anchor absolute children", () => {
+		const parent = { type: "FRAME", absoluteBoundingBox: { x: 0, y: 0, width: 200, height: 100 } };
+		const at = (horizontal: string, vertical: string) =>
+			nodeCss({ type: "RECTANGLE", constraints: { horizontal, vertical }, absoluteBoundingBox: { x: 20, y: 10, width: 40, height: 30 } }, { parent });
+		expect(at("LEFT", "TOP")).toMatchObject({ position: "absolute", left: "20px", top: "10px", width: "40px", height: "30px" });
+		expect(at("RIGHT", "BOTTOM")).toMatchObject({ right: "140px", bottom: "60px" });
+		const stretch = at("LEFT_RIGHT", "TOP_BOTTOM");
+		expect(stretch).toMatchObject({ left: "20px", right: "140px", top: "10px", bottom: "60px" });
+		expect(stretch.width).toBeUndefined();
+		expect(stretch.height).toBeUndefined();
+		expect(at("CENTER", "CENTER")).toMatchObject({ left: "calc(50% - 80px)", top: "calc(50% - 40px)" });
+		expect(nodeCss({ type: "RECTANGLE", constraints: { horizontal: "CENTER", vertical: "CENTER" }, absoluteBoundingBox: { x: 130, y: 50, width: 4, height: 4 } }, { parent })).toMatchObject({ left: "calc(50% + 30px)", top: "50%" });
+		expect(at("SCALE", "SCALE")).toMatchObject({ left: "10%", width: "20%", top: "10%", height: "30%" });
+		const flat = nodeCss({ type: "RECTANGLE", constraints: { horizontal: "SCALE" }, absoluteBoundingBox: { x: 5, y: 0, width: 0, height: 0 } }, { parent: { type: "FRAME", absoluteBoundingBox: { x: 0, y: 0, width: 0, height: 0 } } });
+		expect(flat.left).toBe("5px");
+	});
+
+	test("compose: constrained positions get a TODO instead of a wrong offset", () => {
+		const t = D({ name: "Root", css: { width: "10px" }, children: [D({ name: "Pin", css: { position: "absolute", right: "4px", top: "2px" } }), D({ name: "At", css: { position: "absolute", left: "1px", top: "2px" } })] });
+		const k = generateCompose(t).code;
+		expect(k).toContain("// TODO: constrained position (right: 4px, top: 2px)");
+		expect(k).toContain("offset(1.dp, 2.dp)");
 	});
 });
