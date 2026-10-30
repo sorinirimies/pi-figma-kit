@@ -5,7 +5,7 @@
 [![CI](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **34 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
+Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **35 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
 
 It talks to the **Figma REST API** directly: no desktop app, no separate MCP server process, nothing to keep running. Works with any file you can open, including ones you only have view access to. If the Figma desktop app is running, an optional **bridge** adds live selection, Dev Mode and Code Connect.
 
@@ -49,7 +49,7 @@ Create a **personal access token**: Figma → *Settings* → *Security* → *Per
 | `file_content:read` | design context, code, screenshots, assets, search, flows, text |
 | `file_metadata:read` | file meta |
 | `file_comments:read` / `file_comments:write` | `figma_get_comments`, `figma_post_comment`, `figma_delete_comment` |
-| `file_versions:read` | `figma_get_versions` |
+| `file_versions:read` | `figma_get_versions`, `figma_diff` |
 | `library_content:read` | components, styles (file, team and by key) |
 | `file_variables:read` (+ `:write`) | variables, token export, `figma_update_variables` (**Enterprise plans**) |
 | `file_dev_resources:read` / `:write` | Dev Mode resources |
@@ -114,6 +114,7 @@ Every `file` argument accepts a Figma URL (its `node-id` is used automatically) 
 | `figma_search_nodes` | Find nodes by name or text, as substring or `/regex/`, filtered by type |
 | `figma_get_file_meta` | Name, folder, creator, last editor, link access, no document download |
 | `figma_get_versions` | Version history |
+| `figma_diff` | What changed in a node between versions (`from`: version id or `YYYY-MM-DD`, default: last saved version → now): added/removed/moved nodes, text, component and CSS changes |
 | `figma_list_projects` / `figma_list_files` | Team → project → file |
 | `figma_get_prototype_flows` | Flow starting points and every interaction (trigger → destination / URL / back) |
 

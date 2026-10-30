@@ -2,7 +2,9 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { parseFigmaRef } from "../core/url.ts";
-import { type Ctx, FILE, nodeUrl, target, text } from "./util.ts";
+import { simplify } from "../design/simplify.ts";
+import { diffTrees } from "../design/treediff.ts";
+import { type Ctx, FILE, fetchNodes, nodeUrl, target, text } from "./util.ts";
 
 export function browseTools({ client }: Ctx) {
 	const whoami = defineTool({
@@ -103,5 +105,41 @@ export function browseTools({ client }: Ctx) {
 		},
 	});
 
-	return [whoami, parse, projects, files, comments, postComment, versions];
+	const diff = defineTool({
+		name: "figma_diff",
+		label: "Figma: what changed",
+		description: "What changed in a node between versions (default: last saved version → now): added/removed/moved nodes, text, component and CSS changes.",
+		parameters: Type.Object({
+			file: FILE,
+			node_id: Type.Optional(Type.String({ description: "default: URL node-id" })),
+			from: Type.Optional(Type.String({ description: "version id or date (YYYY-MM-DD)" })),
+			to: Type.Optional(Type.String({ description: "version id; default: current" })),
+		}),
+		async execute(_id, p) {
+			const { ref, ids } = target(p.file, p.node_id ? [p.node_id] : undefined);
+			if (!ids.length) throw new Error("No node id. Pass node_id or a URL with ?node-id=.");
+			const from = await resolveVersion(ref.key, p.from);
+			const [a, b] = await Promise.all([fetchNodes(client, ref.key, [ids[0]!], undefined, from.id), fetchNodes(client, ref.key, [ids[0]!], undefined, p.to)]);
+			const opts = (r: typeof a) => ({ depth: 30, maxNodes: 5000, components: r.components, styles: r.styles });
+			const where = `#${ids[0]} from version ${from.label} to ${p.to ? `version ${p.to}` : "now"}`;
+			if (!a.docs[0] && !b.docs[0]) throw new Error(`Node ${ids[0]} not found in either version.`);
+			if (!a.docs[0]) return text(`${where}: the node did not exist yet (added since).`);
+			if (!b.docs[0]) return text(`${where}: the node was deleted.`);
+			const d = diffTrees(simplify(a.docs[0], opts(a)), simplify(b.docs[0], opts(b)));
+			const head = `${where}: ${d.added} added, ${d.removed} removed, ${d.changed} changed`;
+			return text(d.lines.length ? `${head}\n${d.lines.join("\n")}` : `${head}. No differences.`, { added: d.added, removed: d.removed, changed: d.changed });
+		},
+	});
+
+	/** A version id as is; a date -> the last version saved on or before that day (UTC); nothing -> the latest version. */
+	async function resolveVersion(key: string, from: string | undefined): Promise<{ id: string; label: string }> {
+		const date = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? Date.parse(`${from}T23:59:59.999Z`) : undefined;
+		if (from && date === undefined) return { id: from, label: from };
+		const list: any[] = (await client.get(`/v1/files/${key}/versions`, { page_size: 100 })).versions ?? [];
+		const v = date === undefined ? list[0] : list.find((x) => Date.parse(x.created_at) <= date);
+		if (!v) throw new Error(date === undefined ? "This file has no saved versions yet." : `No version saved on or before ${from} among the last ${list.length}.`);
+		return { id: String(v.id), label: `${v.id} (${v.created_at}${v.label ? `, "${v.label}"` : ""})` };
+	}
+
+	return [whoami, parse, projects, files, comments, postComment, versions, diff];
 }

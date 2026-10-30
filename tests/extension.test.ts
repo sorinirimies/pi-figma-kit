@@ -62,9 +62,9 @@ const run = (name: string, params: any, cwd = tmpdir()) => tools[name].execute("
 const txt = (r: any) => r.content[0].text as string;
 
 test("registers all tools and the command", () => {
-	expect(Object.keys(tools).length).toBe(34);
+	expect(Object.keys(tools).length).toBe(35);
 	expect(Object.keys(tools).sort()).toEqual([
-		"figma_compare", "figma_create_dev_resource", "figma_desktop_call", "figma_desktop_selection", "figma_desktop_tools", "figma_delete_comment", "figma_export_tokens", "figma_get_component", "figma_get_dev_resources", "figma_get_file_meta",
+		"figma_compare", "figma_create_dev_resource", "figma_desktop_call", "figma_desktop_selection", "figma_desktop_tools", "figma_delete_comment", "figma_diff", "figma_export_tokens", "figma_get_component", "figma_get_dev_resources", "figma_get_file_meta",
 		"figma_get_prototype_flows", "figma_get_published_variables", "figma_get_style", "figma_get_team_styles", "figma_get_text", "figma_update_variables",
 		"figma_download_assets", "figma_download_image_fills", "figma_generate_code", "figma_get_comments", "figma_get_components", "figma_get_design_context",
 		"figma_get_file_structure", "figma_get_node_raw", "figma_get_screenshot", "figma_get_styles", "figma_get_variables", "figma_get_versions",
@@ -115,7 +115,7 @@ test("/figma command", async () => {
 	await commands.figma.handler("team https://www.figma.com/files/team/42/x", ctx);
 	await commands.figma.handler("teams", ctx);
 	await commands.figma.handler("tools", ctx);
-	expect(notes.at(-1)).toStartWith("34 figma tools");
+	expect(notes.at(-1)).toStartWith("35 figma tools");
 	notes.pop();
 	await commands.figma.handler("implement https://figma.com/design/AbC123xyz90/x?node-id=1-2 make it blue", ctx);
 	await commands.figma.handler("open nonsense", ctx);

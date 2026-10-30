@@ -40,8 +40,8 @@ export interface NodesResult {
 	missing: string[];
 }
 
-export async function fetchNodes(client: FigmaClient, key: string, ids: string[], depth?: number): Promise<NodesResult> {
-	const r = await client.get(`/v1/files/${key}/nodes`, { ids: ids.join(","), depth, geometry: undefined });
+export async function fetchNodes(client: FigmaClient, key: string, ids: string[], depth?: number, version?: string): Promise<NodesResult> {
+	const r = await client.get(`/v1/files/${key}/nodes`, { ids: ids.join(","), depth, version, geometry: undefined });
 	const out: NodesResult = { docs: [], components: {}, styles: {}, missing: [] };
 	for (const id of ids) {
 		const n = r.nodes?.[id];

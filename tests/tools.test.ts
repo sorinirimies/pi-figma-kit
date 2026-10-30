@@ -9,14 +9,14 @@ const byName = Object.fromEntries(tools.map((t) => [t.name, t]));
 const size = (t: (typeof tools)[number]) => JSON.stringify({ n: t.name, d: t.description, p: t.parameters, s: t.promptSnippet, g: t.promptGuidelines }).length;
 
 test("all tools stay declared to the model", () => {
-	expect(tools.length).toBe(34);
+	expect(tools.length).toBe(35);
 	for (const t of tools) expect((t as any).exposure ?? "direct").toBe("direct");
 });
 
 test("declarations stay within the prompt budget", () => {
 	const total = tools.reduce((a, t) => a + size(t), 0);
 	// 16.9k chars before the trim. Raise only with a reason.
-	expect(total).toBeLessThan(13_500); // ~13k with 34 tools
+	expect(total).toBeLessThan(14_000); // ~13.5k with 35 tools
 	for (const t of tools) expect(t.description.length).toBeLessThanOrEqual(260);
 });
 
@@ -67,7 +67,7 @@ test("enum params accept exactly the same values as before", () => {
 
 test("/figma tools lists every tool, read first", () => {
 	const out = toolList(tools);
-	expect(out).toStartWith("34 figma tools, all available to the agent.");
+	expect(out).toStartWith("35 figma tools, all available to the agent.");
 	for (const t of tools) expect(out).toContain(t.name);
 	expect(out.indexOf("figma_get_file_structure")).toBeLessThan(out.indexOf("Write / save files"));
 	expect(out.indexOf("figma_post_comment")).toBeGreaterThan(out.indexOf("Write / save files"));

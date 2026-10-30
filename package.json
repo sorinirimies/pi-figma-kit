@@ -1,7 +1,7 @@
 {
   "name": "pi-figma-kit",
   "version": "0.2.1",
-  "description": "Pi extension: 34 Figma tools (design context, HTML/React/Tailwind/Compose codegen, screenshots, visual diff, assets, design tokens, prototype flows, comments) and a /figma project browser, over the Figma REST API, with an optional bridge to the Figma desktop MCP server (live selection, Code Connect).",
+  "description": "Pi extension: 35 Figma tools (design context, HTML/React/Tailwind/Compose codegen, screenshots, visual diff, version diff, assets, design tokens, prototype flows, comments) and a /figma project browser, over the Figma REST API, with an optional bridge to the Figma desktop MCP server (live selection, Code Connect).",
   "keywords": [
     "pi-package",
     "pi-extension",
