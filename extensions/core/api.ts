@@ -1,5 +1,6 @@
 /** Thin Figma REST client: auth, LRU caching + de-duplication of GETs, rate-limit handling, cancellation, friendly errors. */
 import { AsyncLocalStorage } from "node:async_hooks";
+import { Retry } from "arrow-resilience-kit";
 
 /**
  * Abort signal of the tool call currently running. The extension sets it around each tool's execute, so
@@ -27,10 +28,18 @@ function untilAborted<T>(p: Promise<T>): Promise<T> {
 }
 
 export class FigmaError extends Error {
-	constructor(message: string, readonly status: number) {
+	constructor(
+		message: string,
+		readonly status: number,
+		/** For a 429: how long Figma asked us to wait (Retry-After), in ms. */
+		readonly retryAfterMs?: number,
+	) {
 		super(message);
 	}
 }
+
+/** Statuses worth retrying for idempotent requests: rate limit and transient gateway/server trouble. */
+const TRANSIENT = new Set([429, 502, 503, 504]);
 
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -40,9 +49,12 @@ export interface ClientOptions {
 	fetch?: FetchFn;
 	/** Cache lifetime for GETs in ms (default 60s; 0 disables). */
 	cacheMs?: number;
-	/** Longest Retry-After we are willing to wait on a 429, in seconds. */
+	/** Longest Retry-After we are willing to wait on a 429, in seconds (default 10). */
 	maxRetryWaitSec?: number;
-	sleep?: (ms: number) => Promise<void>;
+	/** Retries after the first attempt (default 2). */
+	retries?: number;
+	/** First backoff for transient GET failures in ms (default 500; doubled per retry, capped at 5s). */
+	retryBaseMs?: number;
 	/** Cache size cap in bytes of response JSON (default 64 MB). Least recently used entries are evicted first. */
 	cacheBytes?: number;
 	/** Per-request timeout in ms (default 60s for API calls, 120s for downloads). */
@@ -133,29 +145,47 @@ export class FigmaClient {
 		return untilAborted(p);
 	}
 
-	/** One request with 429 retries. GETs may be shared, so they only get the timeout, not a caller's abort signal. */
-	private async send<T>(method: string, url: string, body: unknown): Promise<{ v: T; size: number }> {
+	/**
+	 * One request, retried (arrow-resilience-kit `Retry.withBackoff`):
+	 * - 429: after exactly the `Retry-After` Figma sends (up to `maxRetryWaitSec`), any method.
+	 * - 502/503/504 and network errors: GETs only (idempotent), with capped exponential backoff.
+	 * GETs may be shared between callers, so they only get the timeout, not a caller's abort
+	 * signal; POSTs/DELETEs use the call's signal, which also cancels a pending retry wait.
+	 */
+	private send<T>(method: string, url: string, body: unknown): Promise<{ v: T; size: number }> {
 		const doFetch = this.o.fetch ?? fetch;
-		const sleep = this.o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 		const timeout = this.o.timeoutMs ?? 60_000;
+		const maxWait = (this.o.maxRetryWaitSec ?? 10) * 1000;
+		const idempotent = method === "GET";
 		const headers = { ...this.headers(), ...(body ? { "Content-Type": "application/json" } : {}) };
-		for (let attempt = 0; ; attempt++) {
-			const signal = method === "GET" ? AbortSignal.timeout(timeout) : requestSignal(timeout);
+		const attempt = async () => {
+			const signal = idempotent ? AbortSignal.timeout(timeout) : requestSignal(timeout);
 			const res = await doFetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal }).catch((e: Error) => {
 				throw e.name === "TimeoutError" ? new FigmaError(`Figma API timed out after ${timeout / 1000}s: ${url}`, 408) : e;
 			});
-			if (res.status === 429 && attempt < 2) {
+			if (res.status === 429) {
 				const wait = Number(res.headers.get("retry-after") ?? "1");
-				if (wait <= (this.o.maxRetryWaitSec ?? 10)) {
-					await sleep(Math.max(wait, 0.1) * 1000);
-					continue;
-				}
-				throw new FigmaError(`Figma rate limit hit; retry after ${wait}s.`, 429);
+				const ms = Number.isFinite(wait) ? Math.max(wait, 0) * 1000 : 1000;
+				// Too long to wait inside a tool call: no retryAfterMs, so it isn't retried.
+				throw ms <= maxWait ? new FigmaError(`Figma rate limit hit (429).`, 429, ms) : new FigmaError(`Figma rate limit hit; retry after ${wait}s.`, 429);
 			}
 			if (!res.ok) throw new FigmaError(await explain(res), res.status);
 			const raw = await res.text();
 			return { v: (raw ? JSON.parse(raw) : {}) as T, size: raw.length };
-		}
+		};
+		return Retry.withBackoff(attempt, {
+			retries: this.o.retries ?? 2,
+			baseMillis: this.o.retryBaseMs ?? 500,
+			maxDelayMillis: 5_000,
+			shouldRetry: (e: unknown) =>
+				e instanceof FigmaError
+					? e.status === 429
+						? e.retryAfterMs !== undefined
+						: idempotent && TRANSIENT.has(e.status)
+					: idempotent && e instanceof TypeError, // fetch's network failure ("fetch failed")
+			delayMillis: (e: unknown) => (e instanceof FigmaError ? e.retryAfterMs : undefined),
+			signal: idempotent ? undefined : callSignal.getStore(),
+		});
 	}
 
 	get<T = any>(path: string, query?: Query) {

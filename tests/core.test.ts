@@ -46,13 +46,18 @@ describe("client", () => {
 		expect(e).toBeInstanceOf(FigmaError);
 		expect(e.message).toMatch(/403.*scope.*Forbidden/);
 	});
-	test("retries a short 429", async () => {
+	test("retries a short 429 after exactly Retry-After; a long one fails at once", async () => {
 		let n = 0;
-		const m = mockFetch({ "/v1/me": () => (n++ ? { ok: 1 } : new Response("{}", { status: 429, headers: { "retry-after": "1" } })) });
-		const c = new FigmaClient({ getToken: () => "t", fetch: m.fn, sleep: async () => {} });
-		expect(await c.get("/v1/me")).toEqual({ ok: 1 });
+		const m = mockFetch({ "/v1/me": () => (n++ ? { ok: 1 } : new Response("{}", { status: 429, headers: { "retry-after": "0.15" } })) });
+		const t0 = Date.now();
+		expect(await new FigmaClient({ getToken: () => "t", fetch: m.fn }).get("/v1/me")).toEqual({ ok: 1 });
+		expect(Date.now() - t0).toBeGreaterThanOrEqual(140);
 		const long = mockFetch({ "/v1/me": () => new Response("{}", { status: 429, headers: { "retry-after": "999" } }) });
-		await expect(new FigmaClient({ getToken: () => "t", fetch: long.fn }).get("/v1/me")).rejects.toThrow(/rate limit/);
+		await expect(new FigmaClient({ getToken: () => "t", fetch: long.fn }).get("/v1/me")).rejects.toThrow("Figma rate limit hit; retry after 999s.");
+		expect(long.calls).toHaveLength(1);
+		const junk = mockFetch({ "/v1/me": () => new Response("{}", { status: 429, headers: { "retry-after": "soon" } }) });
+		const e = await new FigmaClient({ getToken: () => "t", fetch: junk.fn, retries: 1 }).get("/v1/me").catch((x) => x);
+		expect([e.status, junk.calls.length]).toEqual([429, 2]); // unparsable Retry-After: 1s, then gives up
 	});
 	test("post sends json and query is skipped for undefined", async () => {
 		const m = mockFetch({ "/v1/x": () => ({}) });

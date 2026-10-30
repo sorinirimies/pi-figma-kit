@@ -46,5 +46,8 @@
     "type": "git",
     "url": "git+https://github.com/sorinirimies/pi-figma-kit.git"
   },
-  "homepage": "https://github.com/sorinirimies/pi-figma-kit#readme"
+  "homepage": "https://github.com/sorinirimies/pi-figma-kit#readme",
+  "dependencies": {
+    "arrow-resilience-kit": "file:../arrow-resilience-kit/build/dist/js/productionLibrary"
+  }
 }
