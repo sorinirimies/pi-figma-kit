@@ -210,3 +210,60 @@ describe("codegen quality", () => {
 		expect(k).toContain("offset(1.dp, 2.dp)");
 	});
 });
+
+describe("shared components", () => {
+	const T = (name: string, text: string, css: any = {}): any => ({ id: `${name}${text}`, name, type: "TEXT", css: { "font-size": "14px", ...css }, text });
+	const btn = (label: string, place: any = {}, extra: any = {}): any => ({
+		id: `b-${label}`, name: "Btn", type: "INSTANCE", component: "Button/Primary", css: { padding: "8px", background: "#ff0000", ...place },
+		children: [T("Label", label), T("Label", "x"), T("Children", "c")], ...extra,
+	});
+	const page = (...kids: any[]): any => ({ id: "p", name: "Button Primary", type: "FRAME", css: { display: "flex", "flex-direction": "row" }, children: kids });
+
+	test("react: one definition, text props with defaults, overrides and placement at the call site", () => {
+		const r = generate(page(btn("Save"), btn("Cancel", { flex: "1 1 0" }), btn("Save")), { framework: "react" });
+		expect(r.code).toContain('function ButtonPrimary2({ className, label = "Save", label2 = "x", childrenText = "c" }: { className?: string; label?: string; label2?: string; childrenText?: string }) {');
+		expect(r.code).toContain('<button className={["btn", className].filter(Boolean).join(" ")} type="button">');
+		expect(r.code).toContain("<p className=\"label\">{label}</p>");
+		expect(r.code).toContain("export function ButtonPrimary() {"); // root keeps its name; the component got a suffix
+		expect(r.code).toContain("      <ButtonPrimary2 />\n      <ButtonPrimary2 className=\"btn-2\" label={\"Cancel\"} />\n      <ButtonPrimary2 />");
+		expect(r.css).toContain(".btn-2 {\n  flex: 1 1 0;\n}");
+		expect(r.code.match(/function ButtonPrimary2/g)).toHaveLength(1);
+	});
+
+	test("tailwind: classes merged with className", () => {
+		const r = generate(page(btn("A", { position: "absolute", left: "4px", top: "8px" }), btn("B")), { framework: "tailwind" }).code;
+		expect(r).toContain('className={["p-2 bg-[#ff0000]", className].filter(Boolean).join(" ")}');
+		expect(r).toContain('<ButtonPrimary2 className="absolute left-1 top-2" />');
+		expect(r).toContain('<ButtonPrimary2 label={"B"} />');
+	});
+
+	test("not shared: a single use, a different structure, or plain HTML", () => {
+		expect(generate(page(btn("A")), { framework: "react" }).code).not.toContain("function ButtonPrimary2");
+		const differs = generate(page(btn("A"), btn("B", {}, { children: [T("Label", "B")] })), { framework: "react" }).code;
+		expect(differs).not.toContain("ButtonPrimary2");
+		const restyled = generate(page(btn("A"), btn("B", { background: "#00ff00" })), { framework: "react" }).code;
+		expect(restyled).not.toContain("ButtonPrimary2");
+		expect(generate(page(btn("A"), btn("B")), { framework: "html" }).code).not.toContain("ButtonPrimary2");
+	});
+
+	test("nested instances inside a shared component stay inline, their texts become props", () => {
+		const card = (title: string, label: string): any => ({ id: `c${title}`, name: "Card", type: "INSTANCE", component: "Card", css: {}, children: [T("Title", title), btn(label)] });
+		const r = generate(page(card("One", "Go"), card("Two", "Stop"), btn("Solo"), btn("Solo2")), { framework: "react" }).code;
+		expect(r).toContain('function Card({ className, title = "One", label = "Go", label2 = "x", childrenText = "c" }');
+		expect(r).toContain('<Card title={"Two"} label={"Stop"} />');
+		expect(r).toContain('function ButtonPrimary2({ className, label = "Solo",'); // defaults from the top-level use
+		expect(r).toContain("      <ButtonPrimary2 />\n      <ButtonPrimary2 label={\"Solo2\"} />");
+		expect(r.match(/className=\{\["btn(-\d)?", className\]/g)).toHaveLength(1); // the inline copy inside Card is plain
+	});
+
+	test("compose: @Composable with modifier + String params", () => {
+		const k = generateCompose(page(btn("Save"), btn("Cancel", { flex: "1 1 0" }))).code;
+		expect(k).toContain('@Composable\nfun ButtonPrimary2(\n    modifier: Modifier = Modifier,\n    label: String = "Save",\n    label2: String = "x",\n    childrenText: String = "c",\n) {');
+		expect(k).toContain("modifier = modifier\n");
+		expect(k).toContain("text = label,");
+		expect(k).toContain("        ButtonPrimary2()\n");
+		expect(k).toContain('        ButtonPrimary2(\n            modifier = Modifier\n                .weight(1f),\n            label = "Cancel",\n        )');
+		const bare = generateCompose(page({ ...btn("A"), css: {} }, { ...btn("B"), css: {} })).code;
+		expect(bare).toContain("    Box(\n        modifier = modifier,\n    )");
+	});
+});

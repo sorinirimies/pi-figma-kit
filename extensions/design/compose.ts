@@ -1,7 +1,7 @@
 /** DNode -> Jetpack Compose scaffold (Column/Row/Box + Modifier chains, Text, Icon/Image). */
 import type { DNode } from "./simplify.ts";
 import { varNames } from "./bindings.ts";
-import { pascal, slug } from "./codegen.ts";
+import { type SharedComponent, pascal, sharedComponents, slug, splitPlacement } from "./codegen.ts";
 
 const num = (v: string | undefined): number | undefined => {
 	const m = v && /^(-?[\d.]+)px$/.exec(v.trim());
@@ -94,8 +94,9 @@ function modifier(d: DNode, parentKind: "Column" | "Row" | "Box" | undefined, no
 	return m;
 }
 
-const mod = (parts: string[], pad: string) =>
-	parts.length ? `modifier = Modifier\n${parts.map((p) => `${pad}        .${p}`).join("\n")}` : "";
+/** `modifier = Modifier.a().b()`; `base` is "modifier" inside a shared component (the caller's modifier comes first). */
+const mod = (parts: string[], pad: string, base = "Modifier") =>
+	parts.length ? `modifier = ${base}\n${parts.map((p) => `${pad}        .${p}`).join("\n")}` : base === "Modifier" ? "" : `modifier = ${base}`;
 
 const str = (s: string) => JSON.stringify(s).replace(/\$/g, "\\$");
 
@@ -124,26 +125,64 @@ export interface ComposeResult {
 }
 
 export function generateCompose(root: DNode, name = pascal(root.name)): ComposeResult {
+	const shared = sharedComponents(root, [name]);
+	const defined = new Map<SharedComponent, string>();
+	type Kind = "Column" | "Row" | "Box" | undefined;
+	/** While emitting a shared component: its root takes `modifier`, its texts are parameters. */
+	type Def = { root: DNode; textProp: Map<DNode, string> };
 
-	const emit = (d: DNode, indent: number, parent: "Column" | "Row" | "Box" | undefined): string => {
+	const textsOf = (d: DNode, out: DNode[] = []): DNode[] => {
+		if (d.text !== undefined && !d.runs) out.push(d);
+		for (const c of d.children ?? []) textsOf(c, out);
+		return out;
+	};
+
+	const define = (sc: SharedComponent): string => {
+		const def: Def = { root: sc.template, textProp: new Map(sc.props.map((p) => [p.node, p.prop])) };
+		const body = emit(sc.template, 1, undefined, def);
+		const params = ["modifier: Modifier = Modifier", ...sc.props.map((p) => `${p.prop}: String = ${str(p.node.text!)}`)];
+		return `@Composable\nfun ${sc.name}(\n${params.map((x) => `    ${x},`).join("\n")}\n) {\n${body}\n}\n`;
+	};
+
+	/** Call of a shared component, with this instance's placement and differing texts. */
+	const call = (d: DNode, sc: SharedComponent, indent: number, parent: Kind, notes: string[]): string => {
+		if (!defined.has(sc)) defined.set(sc, define(sc));
+		const pad = "    ".repeat(indent);
+		const args: string[] = [];
+		const m = mod(modifier({ ...d, css: splitPlacement(d.css).place }, parent, notes), pad);
+		if (m) args.push(m);
+		const texts = textsOf(d);
+		sc.props.forEach(({ node, prop }, i) => {
+			const t = texts[i]?.text;
+			if (t !== undefined && t !== node.text) args.push(`${prop} = ${str(t)}`);
+		});
+		return args.length ? `${pad}${sc.name}(\n${args.map((a) => `${pad}    ${a},`).join("\n")}\n${pad})` : `${pad}${sc.name}()`;
+	};
+
+	const emit = (d: DNode, indent: number, parent: Kind, def?: Def): string => {
 		const notes: string[] = [];
 		const tokens = varNames(d.vars);
 		if (tokens.length) notes.push(`// tokens: ${tokens.join(", ")}`);
-		const out = emitNode(d, indent, parent, notes);
+		const sc = def ? undefined : shared.get(d);
+		const out = sc ? call(d, sc, indent, parent, notes) : emitNode(d, indent, parent, notes, def);
 		const pad = "    ".repeat(indent);
 		return notes.length ? `${notes.map((x) => `${pad}${x}`).join("\n")}\n${out}` : out;
 	};
-	const emitNode = (d: DNode, indent: number, parent: "Column" | "Row" | "Box" | undefined, notes: string[]): string => {
+	const emitNode = (d: DNode, indent: number, parent: Kind, notes: string[], def?: Def): string => {
 		const pad = "    ".repeat(indent);
 		const c = d.css;
+		const isDefRoot = def?.root === d;
+		// A shared component's root: own styling only; the caller's modifier carries the placement.
+		const modOf = () => (isDefRoot ? mod(modifier({ ...d, css: splitPlacement(c).own }, undefined, notes), pad, "modifier") : mod(modifier(d, parent, notes), pad));
 		if (d.asset || (d.imageRef && !d.children?.length)) {
 			const res = `R.drawable.${slug(d.asset ? d.name : d.imageRef!).replace(/-/g, "_")}`;
-			const m = mod(modifier(d, parent, notes), pad);
+			const m = modOf();
 			const args = [`painter = painterResource(${res})`, `contentDescription = ${str(d.name)}`, ...(m ? [m] : [])];
 			return `${pad}${d.asset ? "Icon" : "Image"}(\n${args.map((a) => `${pad}    ${a},`).join("\n")}\n${pad})`;
 		}
 		if (d.text !== undefined) {
-			const args = [`text = ${str(d.text)}`];
+			const prop = def?.textProp.get(d);
+			const args = [`text = ${prop ?? str(d.text)}`];
 			const col = composeColor(c.color);
 			if (col) args.push(`color = ${col}`);
 			if (num(c["font-size"])) args.push(`fontSize = ${sp(num(c["font-size"])!)}`);
@@ -153,13 +192,13 @@ export function generateCompose(root: DNode, name = pascal(root.name)): ComposeR
 			if (num(c["letter-spacing"])) args.push(`letterSpacing = ${sp(num(c["letter-spacing"])!)}`);
 			if (c["text-align"]) args.push(`textAlign = TextAlign.${c["text-align"][0]!.toUpperCase()}${c["text-align"].slice(1).replace("justify", "Justify")}`);
 			if (c["text-decoration"]) args.push(`textDecoration = TextDecoration.${c["text-decoration"] === "underline" ? "Underline" : "LineThrough"}`);
-			const m = mod(modifier(d, parent, notes), pad);
+			const m = modOf();
 			if (m) args.push(m);
 			return `${pad}Text(\n${args.map((a) => `${pad}    ${a},`).join("\n")}\n${pad})`;
 		}
 		const kind: "Column" | "Row" | "Box" = c["flex-direction"] === "column" ? "Column" : c["flex-direction"] === "row" ? "Row" : "Box";
 		const args: string[] = [];
-		const mm = mod(modifier(d, parent, notes), pad);
+		const mm = modOf();
 		if (mm) args.push(mm);
 		if (kind !== "Box") {
 			const gap = num(c.gap);
@@ -175,13 +214,13 @@ export function generateCompose(root: DNode, name = pascal(root.name)): ComposeR
 			if (al) args.push(`${col ? "horizontalAlignment" : "verticalAlignment"} = Alignment.${al}`);
 			if (c["flex-wrap"]) notes.push("// TODO: wrap → FlowRow/FlowColumn");
 		}
-		const kids = (d.children ?? []).map((k) => emit(k, indent + 1, kind));
+		const kids = (d.children ?? []).map((k) => emit(k, indent + 1, kind, def));
 		const head = `${pad}${kind}(${args.length ? `\n${args.map((a) => `${pad}    ${a},`).join("\n")}\n${pad}` : ""})`;
 		return kids.length ? `${head} {\n${kids.join("\n")}\n${pad}}` : `${head} {}`;
 	};
 
 	const body = emit(root, 1, undefined);
-	const code = `@Composable\nfun ${name}() {\n${body}\n}\n`;
+	const code = [...defined.values(), `@Composable\nfun ${name}() {\n${body}\n}\n`].join("\n");
 	const imports = new Set(["androidx.compose.runtime.Composable"]);
 	for (const [re, imp] of IMPORTS) if (re.test(code)) imports.add(imp);
 	return { code, imports: [...imports].sort() };
