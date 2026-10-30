@@ -8,11 +8,14 @@ import { Retry } from "arrow-resilience-kit";
  */
 export const callSignal = new AsyncLocalStorage<AbortSignal | undefined>();
 
-/** The current call's signal combined with a timeout. */
-export function requestSignal(timeoutMs: number): AbortSignal {
+/**
+ * The current call's signal combined with a timeout. Pass `call` explicitly when running inside
+ * a library callback (e.g. arrow-resilience-kit): its scheduler doesn't carry AsyncLocalStorage
+ * context, so `callSignal.getStore()` must be read before entering it.
+ */
+export function requestSignal(timeoutMs: number, call: AbortSignal | undefined = callSignal.getStore()): AbortSignal {
 	const t = AbortSignal.timeout(timeoutMs);
-	const s = callSignal.getStore();
-	return s ? AbortSignal.any([s, t]) : t;
+	return call ? AbortSignal.any([call, t]) : t;
 }
 
 /** Resolve with `p`, or reject as soon as the current call is aborted (the shared work keeps running for others). */
@@ -157,9 +160,11 @@ export class FigmaClient {
 		const timeout = this.o.timeoutMs ?? 60_000;
 		const maxWait = (this.o.maxRetryWaitSec ?? 10) * 1000;
 		const idempotent = method === "GET";
+		const call = idempotent ? undefined : callSignal.getStore(); // read before entering the kit (see requestSignal)
 		const headers = { ...this.headers(), ...(body ? { "Content-Type": "application/json" } : {}) };
 		const attempt = async () => {
-			const signal = idempotent ? AbortSignal.timeout(timeout) : requestSignal(timeout);
+			call?.throwIfAborted(); // the kit may run this a tick (or a retry wait) later, after an Esc
+			const signal = requestSignal(timeout, call);
 			const res = await doFetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal }).catch((e: Error) => {
 				throw e.name === "TimeoutError" ? new FigmaError(`Figma API timed out after ${timeout / 1000}s: ${url}`, 408) : e;
 			});
@@ -184,7 +189,7 @@ export class FigmaClient {
 						: idempotent && TRANSIENT.has(e.status)
 					: idempotent && e instanceof TypeError, // fetch's network failure ("fetch failed")
 			delayMillis: (e: unknown) => (e instanceof FigmaError ? e.retryAfterMs : undefined),
-			signal: idempotent ? undefined : callSignal.getStore(),
+			signal: call,
 		});
 	}
 

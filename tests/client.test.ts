@@ -165,6 +165,16 @@ describe("retries (arrow-resilience-kit)", () => {
 		expect(f.calls).toHaveLength(1);
 	});
 
+	test("aborting cancels an in-flight POST inside the retry loop (signal survives the kit)", async () => {
+		const hang = (_u: string, init?: RequestInit) =>
+			new Promise<Response>((_r, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+		const ac = new AbortController();
+		const t0 = Date.now();
+		setTimeout(() => ac.abort(new DOMException("esc", "AbortError")), 20);
+		await expect(callSignal.run(ac.signal, () => client(hang).post("/v1/x", {}))).rejects.toMatchObject({ name: "AbortError" });
+		expect(Date.now() - t0).toBeLessThan(1_000);
+	});
+
 	test("the kit stays silent: nothing reaches the console", async () => {
 		const spy = [console.log, console.warn, console.error, console.info, console.debug];
 		const out: unknown[] = [];

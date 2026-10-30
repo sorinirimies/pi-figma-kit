@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { callSignal } from "../extensions/core/api.ts";
 import { McpClient, parseSse } from "../extensions/core/mcp.ts";
 import { desktopTools } from "../extensions/tools/desktop.ts";
 
@@ -92,5 +93,60 @@ describe("desktop tools", () => {
 		const r = await selection.execute("i", { node_id: "1-2", language: "kotlin", framework: "compose", screenshot: true });
 		expect(r.content[0].text).toBe('ctx {"nodeId":"1:2","clientLanguages":"kotlin","clientFrameworks":"compose"}');
 		expect(r.content[1].type).toBe("image");
+	});
+});
+
+describe("McpClient circuit breaker (arrow-resilience-kit)", () => {
+	/** A server that is down until `up()` is called; counts every connection attempt. */
+	function flaky(status = 200) {
+		let down = true;
+		let attempts = 0;
+		const ok = server().fn;
+		const fn = (async (u: string, init: RequestInit) => {
+			attempts++;
+			if (down) throw new TypeError("fetch failed (ECONNREFUSED)");
+			if (status !== 200) return new Response("boom", { status });
+			return ok(u, init);
+		}) as unknown as typeof fetch;
+		return { fn, up: () => (down = false), attempts: () => attempts };
+	}
+
+	test("fails fast after 2 unreachable calls, then probes again after the reset time", async () => {
+		const s = flaky();
+		const c = new McpClient({ url: () => "http://x/mcp", fetch: s.fn, breakerResetMs: 60 });
+		await expect(c.listTools()).rejects.toThrow(/not reachable at http:\/\/x\/mcp \(fetch failed/);
+		await expect(c.listTools()).rejects.toThrow(/not reachable/);
+		expect(s.attempts()).toBe(2);
+		await expect(c.listTools()).rejects.toThrow(/unreachable moments ago; not trying again for up to 0s\. Open the Figma desktop app/);
+		expect(s.attempts()).toBe(2); // no request: failed fast
+		s.up();
+		await Bun.sleep(80);
+		expect((await c.listTools()).map((t) => t.name)).toEqual(["get_design_context", "b"]); // half-open probe succeeds, closes
+	});
+
+	test("errors the server returns never open the circuit", async () => {
+		const c = new McpClient({ url: () => "http://x/mcp", fetch: server({ rpcError: "bad node" }).fn });
+		for (let i = 0; i < 4; i++) await expect(c.callTool("x")).rejects.toThrow("bad node");
+		const http = flaky(500);
+		http.up();
+		const h = new McpClient({ url: () => "http://x/mcp", fetch: http.fn });
+		for (let i = 0; i < 4; i++) await expect(h.listTools()).rejects.toThrow(/HTTP 500/);
+		expect(http.attempts()).toBe(4); // every call still reached the server
+	});
+
+	test("aborts don't count as unreachable", async () => {
+		let attempts = 0;
+		const hang = ((_u: string, init: RequestInit) => {
+			attempts++;
+			return new Promise((_r, reject) => init.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+		}) as unknown as typeof fetch;
+		const c = new McpClient({ url: () => "http://x/mcp", fetch: hang });
+		for (let i = 0; i < 3; i++) {
+			const ac = new AbortController();
+			const p = callSignal.run(ac.signal, () => c.listTools());
+			setTimeout(() => ac.abort(new DOMException("esc", "AbortError")), 5);
+			await expect(p).rejects.toMatchObject({ name: "AbortError" });
+		}
+		expect(attempts).toBe(3); // still trying: the circuit stayed closed
 	});
 });
