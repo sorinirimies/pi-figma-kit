@@ -13,7 +13,7 @@ import type { Ctx } from "./util.ts";
  */
 export const GUIDELINES = [
 	"Figma tools take a Figma URL or file key; when node ids are omitted, the URL's ?node-id= is used. Find ids with figma_get_file_structure or figma_search_nodes.",
-	"For Figma-to-code: figma_get_design_context (or figma_generate_code for a scaffold), then figma_get_screenshot to compare visually, and figma_download_assets for icons (svg) and images (png/jpg, scale 2-3).",
+	"For Figma-to-code: figma_get_design_context (or figma_generate_code for a scaffold), then figma_get_screenshot to compare visually, and figma_download_assets for icons (svg) and images (png/jpg, scale 2-3). Verify the result with figma_compare (PNG screenshot of your UI).",
 	"Figma write tools (post/delete comment, create dev resource, update variables) only when the user asks.",
 ];
 
@@ -34,6 +34,8 @@ const ANNOTATIONS: Record<string, ToolAnnotations> = {
 	figma_download_assets: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
 	figma_download_image_fills: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
 	figma_get_screenshot: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+	// Writes only the diff image into the temp dir.
+	figma_compare: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 	// Arbitrary desktop MCP tool: unknown effects, keep the conservative defaults.
 	figma_desktop_call: {},
 };

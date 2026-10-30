@@ -14,6 +14,8 @@ import { collectFlows, renderFlows } from "../extensions/design/flows.ts";
 import { outline, simplify } from "../extensions/design/simplify.ts";
 import { fromVariables, toCss, toJson, toTailwind } from "../extensions/design/tokens.ts";
 import { McpClient, parseSse } from "../extensions/core/mcp.ts";
+import { decodePng, encodePng } from "../extensions/design/png.ts";
+import { diffImages } from "../extensions/design/diff.ts";
 import { normalizeNodeId, parseFigmaRef } from "../extensions/core/url.ts";
 
 const ITERS = Number(process.env.FUZZ_ITERS ?? 300);
@@ -131,6 +133,24 @@ describe(`fuzz (seed ${SEED}, ${ITERS} iterations)`, () => {
 		expect(typeof toCss(set)).toBe("string");
 		expect(() => JSON.parse(toJson(set))).not.toThrow();
 		expect(typeof toTailwind(set)).toBe("string");
+	});
+
+	fuzz("PNG decoder: mutated files decode consistently or fail with a plain Error", (r) => {
+		const w = 1 + Math.floor(r() * 6);
+		const h = 1 + Math.floor(r() * 6);
+		const img = { width: w, height: h, data: Uint8Array.from({ length: w * h * 4 }, () => Math.floor(r() * 256)) };
+		const png = encodePng(img);
+		expect(decodePng(png)).toEqual(img);
+		const bad = Uint8Array.from(png);
+		for (let k = 0, n = 1 + Math.floor(r() * 4); k < n; k++) bad[8 + Math.floor(r() * (bad.length - 8))] = Math.floor(r() * 256);
+		const cut = chance(r, 0.3) ? bad.subarray(0, Math.floor(r() * bad.length)) : bad;
+		try {
+			const out = decodePng(cut);
+			expect(out.data.length).toBe(out.width * out.height * 4);
+			expect(diffImages(out, img).percent).toBeGreaterThanOrEqual(0);
+		} catch (e) {
+			expect(e).toBeInstanceOf(Error);
+		}
 	});
 
 	fuzz("URL parser returns a ref or a plain Error", (r) => {

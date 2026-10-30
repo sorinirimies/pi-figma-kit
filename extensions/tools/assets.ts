@@ -1,10 +1,13 @@
 /** Rendering & export: screenshots, icon/image downloads. */
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { slug } from "../design/codegen.ts";
-import { type Ctx, FILE, NODE_IDS, chunks, imageExt, mapLimit, resolveDir, safeName, saveBytes, target, text } from "./util.ts";
+import { diffImages } from "../design/diff.ts";
+import { decodePng, encodePng, isPng } from "../design/png.ts";
+import { type Ctx, FILE, NODE_IDS, chunks, fetchNodes, imageExt, mapLimit, resolveDir, safeName, saveBytes, target, text } from "./util.ts";
 
 /** Parallel downloads per call; Figma's image CDN handles this fine, the REST API is not involved. */
 const PARALLEL = 6;
@@ -134,5 +137,47 @@ export function assetTools({ client }: Ctx) {
 		},
 	});
 
-	return [screenshot, assets, fills];
+	const compare = defineTool({
+		name: "figma_compare",
+		label: "Figma: compare with implementation",
+		description: "Pixel-diff a PNG of your implementation against the node rendered at the same width: mismatch %, regions, render + diff image.",
+		parameters: Type.Object({
+			file: FILE,
+			node_id: Type.Optional(Type.String({ description: "default: URL node-id" })),
+			image: Type.String({ description: "PNG path" }),
+			threshold: Type.Optional(Type.Number({ description: "color tolerance, default 0.1", minimum: 0, maximum: 1 })),
+		}),
+		async execute(_id, p, _s, _u, ctx) {
+			const { ref, ids } = target(p.file, p.node_id ? [p.node_id] : undefined);
+			if (!ids.length) throw new Error("No node id. Pass node_id or a URL with ?node-id=.");
+			const path = resolveDir(ctx.cwd, p.image, p.image);
+			const bytes = new Uint8Array(await readFile(path));
+			if (!isPng(bytes)) throw new Error(`${path} is not a PNG. Save the screenshot as PNG.`);
+			const impl = decodePng(bytes);
+			const r = await fetchNodes(client, ref.key, [ids[0]!], 1);
+			const bb = r.docs[0]?.absoluteBoundingBox;
+			if (!bb?.width) throw new Error(`Node ${ids[0]} not found or has no size.`);
+			// Same width as the screenshot, so a 2x device screenshot compares against a 2x render.
+			const scale = Math.min(4, Math.max(0.01, impl.width / bb.width));
+			const url = (await render(client, ref.key, [ids[0]!], "png", scale))[ids[0]!];
+			if (!url) throw new Error(`Node ${ids[0]} is not renderable.`);
+			const designBytes = (await client.download(url)).bytes;
+			const design = decodePng(designBytes);
+			const d = diffImages(design, impl, p.threshold ?? 0.1);
+			const dir = join(tmpdir(), "pi-figma", ref.key);
+			const diffPath = await saveBytes(dir, `${safeName(ids[0]!)}-diff.png`, encodePng(d.image));
+			const lines = [
+				`Mismatch: ${d.percent}% (${d.mismatched} of ${d.width * d.height} px, threshold ${p.threshold ?? 0.1})`,
+				`Design render: ${design.width}x${design.height} @${Math.round(scale * 100) / 100}x · implementation: ${impl.width}x${impl.height}`,
+			];
+			if (design.width !== impl.width || design.height !== impl.height) lines.push(`Size differs by ${impl.width - design.width}x${impl.height - design.height} px; only the overlap ${d.width}x${d.height} was compared.`);
+			if (d.bounds) lines.push(`Differences within x=${d.bounds.x} y=${d.bounds.y} ${d.bounds.width}x${d.bounds.height}`);
+			if (d.regions.length) lines.push(`Regions: ${d.regions.map((x) => `${x.name} ${x.percent}%`).join(", ")}`);
+			lines.push(`Diff image (red = different): ${diffPath}`, "Images: 1) Figma render 2) diff");
+			const img = (b: Uint8Array) => ({ type: "image" as const, data: Buffer.from(b).toString("base64"), mimeType: "image/png" });
+			return { content: [{ type: "text" as const, text: lines.join("\n") }, img(designBytes), img(encodePng(d.image))], details: { percent: d.percent, diffPath } };
+		},
+	});
+
+	return [screenshot, assets, fills, compare];
 }

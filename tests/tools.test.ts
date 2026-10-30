@@ -9,14 +9,14 @@ const byName = Object.fromEntries(tools.map((t) => [t.name, t]));
 const size = (t: (typeof tools)[number]) => JSON.stringify({ n: t.name, d: t.description, p: t.parameters, s: t.promptSnippet, g: t.promptGuidelines }).length;
 
 test("all tools stay declared to the model", () => {
-	expect(tools.length).toBe(33);
+	expect(tools.length).toBe(34);
 	for (const t of tools) expect((t as any).exposure ?? "direct").toBe("direct");
 });
 
 test("declarations stay within the prompt budget", () => {
 	const total = tools.reduce((a, t) => a + size(t), 0);
 	// 16.9k chars before the trim. Raise only with a reason.
-	expect(total).toBeLessThan(13_000); // ~12.4k now
+	expect(total).toBeLessThan(13_500); // ~13k with 34 tools
 	for (const t of tools) expect(t.description.length).toBeLessThanOrEqual(260);
 });
 
@@ -30,7 +30,7 @@ test("shared guidance is stated once", () => {
 test("annotations mark writes, read-only everything else", () => {
 	const writes = tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name).sort();
 	expect(writes).toEqual([
-		"figma_create_dev_resource", "figma_delete_comment", "figma_desktop_call", "figma_download_assets", "figma_download_image_fills",
+		"figma_compare", "figma_create_dev_resource", "figma_delete_comment", "figma_desktop_call", "figma_download_assets", "figma_download_image_fills",
 		"figma_get_screenshot", "figma_post_comment", "figma_update_variables",
 	]);
 	expect(byName.figma_delete_comment!.annotations).toMatchObject({ destructiveHint: true });
@@ -67,7 +67,7 @@ test("enum params accept exactly the same values as before", () => {
 
 test("/figma tools lists every tool, read first", () => {
 	const out = toolList(tools);
-	expect(out).toStartWith("33 figma tools, all available to the agent.");
+	expect(out).toStartWith("34 figma tools, all available to the agent.");
 	for (const t of tools) expect(out).toContain(t.name);
 	expect(out.indexOf("figma_get_file_structure")).toBeLessThan(out.indexOf("Write / save files"));
 	expect(out.indexOf("figma_post_comment")).toBeGreaterThan(out.indexOf("Write / save files"));

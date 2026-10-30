@@ -5,7 +5,7 @@
 [![CI](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **33 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
+Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **34 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
 
 It talks to the **Figma REST API** directly: no desktop app, no separate MCP server process, nothing to keep running. Works with any file you can open, including ones you only have view access to. If the Figma desktop app is running, an optional **bridge** adds live selection, Dev Mode and Code Connect.
 
@@ -133,6 +133,7 @@ Every `file` argument accepts a Figma URL (its `node-id` is used automatically) 
 | `figma_get_screenshot` | Render nodes; PNG/JPG shown inline (up to 4) and saved, SVG/PDF saved |
 | `figma_download_assets` | Export nodes as `svg` / `png` / `jpg` / `pdf` into the project (`scale` 1–4) |
 | `figma_download_image_fills` | Download original bitmaps by `imageRef`; without refs, lists them |
+| `figma_compare` | Pixel-diff a PNG screenshot of your implementation against the node, rendered at the screenshot's width: mismatch %, differing regions, Figma render + diff image |
 
 ### Design system
 
@@ -195,7 +196,7 @@ Figma has **no endpoint that lists your teams**, so add one once with `/figma te
 /figma implement https://www.figma.com/design/KEY/App?node-id=12-34 as a Compose screen using our theme
 ```
 
-The agent typically runs `figma_get_design_context` → `figma_get_screenshot` (to see it) → `figma_export_tokens` / `figma_get_styles` (to map colors and type to your theme) → `figma_download_assets` (icons as SVG) → writes the code → renders again to compare.
+The agent typically runs `figma_get_design_context` → `figma_get_screenshot` (to see it) → `figma_export_tokens` / `figma_get_styles` (to map colors and type to your theme) → `figma_download_assets` (icons as SVG) → writes the code → screenshots it and checks it with `figma_compare`.
 
 **Tokens to code**
 
