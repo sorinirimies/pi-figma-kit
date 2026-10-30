@@ -175,6 +175,22 @@ describe("retries (arrow-resilience-kit)", () => {
 		expect(Date.now() - t0).toBeLessThan(1_000);
 	});
 
+	test("concurrent calls keep their own abort signal: Esc on one doesn't cancel the other", async () => {
+		const fn = (_u: string, init?: RequestInit) =>
+			new Promise<Response>((resolve, reject) => {
+				init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+				setTimeout(() => resolve(Response.json({ done: true })), 40);
+			});
+		const a = new AbortController();
+		const b = new AbortController();
+		const c = client(fn);
+		const pa = callSignal.run(a.signal, () => c.post("/v1/a", {}));
+		const pb = callSignal.run(b.signal, () => c.post("/v1/b", {}));
+		a.abort(new DOMException("esc", "AbortError"));
+		await expect(pa).rejects.toMatchObject({ name: "AbortError" });
+		expect(await pb).toEqual({ done: true });
+	});
+
 	test("the kit stays silent: nothing reaches the console", async () => {
 		const spy = [console.log, console.warn, console.error, console.info, console.debug];
 		const out: unknown[] = [];

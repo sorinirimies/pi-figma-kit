@@ -9,9 +9,10 @@ import { Retry } from "arrow-resilience-kit";
 export const callSignal = new AsyncLocalStorage<AbortSignal | undefined>();
 
 /**
- * The current call's signal combined with a timeout. Pass `call` explicitly when running inside
- * a library callback (e.g. arrow-resilience-kit): its scheduler doesn't carry AsyncLocalStorage
- * context, so `callSignal.getStore()` must be read before entering it.
+ * The current call's signal combined with a timeout. Inside library callbacks (arrow-resilience-kit)
+ * pass `call` explicitly, read before entering the library: the async context is only carried into
+ * callbacks where the runtime supports `AsyncLocalStorage.snapshot()`, and a wrong context here
+ * would let one tool call's Esc cancel another call's request.
  */
 export function requestSignal(timeoutMs: number, call: AbortSignal | undefined = callSignal.getStore()): AbortSignal {
 	const t = AbortSignal.timeout(timeoutMs);
