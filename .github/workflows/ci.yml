@@ -52,11 +52,18 @@ jobs:
 
   # Paths, terminals and time zones differ: run the suite where users run pi.
   test:
-    name: test (${{ matrix.os }}${{ matrix.tz && format(', {0}', matrix.tz) || '' }})
+    name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: macos-latest }
-          - { os: windows-latest }
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - run: bun install --frozen-lockfile
+
+      - name: bun test
+        run: bun test
