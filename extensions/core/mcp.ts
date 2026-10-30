@@ -2,6 +2,8 @@
  * Minimal MCP client (Streamable HTTP, JSON-RPC 2.0) for the Figma *desktop* MCP server
  * (default http://127.0.0.1:3845/mcp). Handles JSON and SSE responses and the Mcp-Session-Id header.
  */
+import { requestSignal } from "./api.ts";
+
 export const DEFAULT_MCP_URL = "http://127.0.0.1:3845/mcp";
 
 export interface McpTool {
@@ -38,8 +40,9 @@ export class McpClient {
 		if (this.session) headers["mcp-session-id"] = this.session;
 		let res: Response;
 		try {
-			res = await (this.o.fetch ?? fetch)(this.url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(this.o.timeoutMs ?? 60_000) });
+			res = await (this.o.fetch ?? fetch)(this.url, { method: "POST", headers, body: JSON.stringify(body), signal: requestSignal(this.o.timeoutMs ?? 60_000) });
 		} catch (e) {
+			if ((e as Error).name === "AbortError") throw e;
 			throw new Error(`Figma desktop MCP server not reachable at ${this.url} (${(e as Error).message}). Open the Figma desktop app, then Dev Mode → "Enable desktop MCP server".`);
 		}
 		this.session = res.headers.get("mcp-session-id") ?? this.session;

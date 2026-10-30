@@ -9,7 +9,7 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { completions, runCommand } from "./command/figma-command.ts";
-import { FigmaClient } from "./core/api.ts";
+import { FigmaClient, callSignal } from "./core/api.ts";
 import { McpClient } from "./core/mcp.ts";
 import { type FigmaConfig, envToken, loadConfig } from "./core/config.ts";
 import { allTools } from "./tools/index.ts";
@@ -31,7 +31,8 @@ export default function figmaExtension(pi: ExtensionAPI) {
 	const tools = allTools({ client, mcp });
 	for (const tool of tools) {
 		const exec = tool.execute;
-		pi.registerTool({ ...tool, execute: async (...a: Parameters<typeof exec>) => (await ready, exec(...a)) } as typeof tool);
+		// Run inside the call's abort signal so every request it makes is cancelled with it.
+		pi.registerTool({ ...tool, execute: async (...a: Parameters<typeof exec>) => (await ready, callSignal.run(a[2], () => exec(...a))) } as typeof tool);
 	}
 
 	pi.registerCommand("figma", {

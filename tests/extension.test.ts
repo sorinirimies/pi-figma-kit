@@ -292,3 +292,10 @@ test("coverage gaps: config file, assets not renderable, variables write, login 
 	await commands.figma.handler("login figd_x", { ui: { notify: (m: string) => notes.push(m) } } as any);
 	expect(notes.at(-1)).toContain("check failed: Figma API 401 (unauthorized: check your token): bad");
 });
+
+test("tool calls run inside their abort signal", async () => {
+	const ac = new AbortController();
+	ac.abort(new Error("cancelled by user"));
+	await expect(tools.figma_whoami.execute("id", {}, ac.signal, undefined, { cwd: tmpdir() })).rejects.toThrow("cancelled by user");
+	expect(txt(await run("figma_whoami", {}))).toContain("me");
+});
