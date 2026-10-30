@@ -83,7 +83,7 @@ or inside pi: `/figma login figd_...`, saved to `~/.pi/agent/figma.json` (file m
 
 1. **Registration.** On load, the extension registers every tool with pi (`pi.registerTool`) and the `/figma` command. The saved config is read lazily on first use, so startup is instant and does no network I/O.
 2. **Addressing.** Every tool takes a Figma **URL or file key**. A URL's `?node-id=12-34` (or branch URL) is parsed into file key + node id `12:34`, so you can paste a link from Figma's *Copy link to selection* and the agent sees exactly that frame.
-3. **Fetching.** `core/api.ts` is a thin REST client: token header, per-URL GET cache (60 s, so exploring the same file repeatedly costs one request), automatic retry on short `429` `Retry-After`s, and error messages that tell you what to fix (bad token, missing scope, wrong key).
+3. **Fetching.** `core/api.ts` is a thin REST client: token header, per-URL GET cache (60 s, so exploring the same file repeatedly costs one request), and error messages that tell you what to fix (bad token, missing scope, wrong key). Network resilience comes from [arrow-resilience-kit](https://github.com/sorinirimies/arrow-resilience-kit): a `429` is retried after exactly the `Retry-After` Figma sends (up to 10 s), GETs also retry `502`/`503`/`504` and network errors with capped backoff (writes never retry blindly), and pressing Esc cancels a pending wait. The desktop bridge sits behind a circuit breaker: when the app hangs or is gone, calls fail fast for 15 s instead of each waiting out the timeout.
 4. **Simplifying.** The raw Figma node JSON is huge and noisy. `design/simplify.ts` walks it and produces a **DNode tree**: hidden layers dropped, depth and node budget enforced, auto-layout turned into flex, paints into CSS, text into typography (including mixed-style runs), instances annotated with their component names, applied styles by name, and icon-only subtrees collapsed into a single *SVG asset* so you export them instead of rebuilding vectors.
 5. **Emitting.** From the DNode tree the tools render a compact **outline** (`figma_get_design_context`), or generate code (`figma_generate_code` → HTML+CSS, React, Tailwind, Compose). Tokens (`figma_export_tokens`) and prototype flows (`figma_get_prototype_flows`) have their own translators.
    Values bound to a Figma variable (or a named fill/stroke style) come out as `var(--token, literal)` with the same names `figma_export_tokens` defines, so generated code uses your tokens instead of hardcoded hex/px. Compose keeps literals and lists the tokens in a comment. Variable names need Enterprise (`file_variables:read`); without it, styles still map.
@@ -270,7 +270,7 @@ Recorded from a real pi with only this plugin loaded, against a **fake Figma** a
 
 - The REST tools have no live selection, Code Connect or Dev Mode snippets. Pass links with `node-id`, or use the [desktop bridge](#figma-desktop-bridge-optional) for those.
 - Variables and variable writes need a Figma **Enterprise** plan; `figma_export_tokens` falls back to styles otherwise.
-- Figma rate-limits per token. Short `429`s are retried; long ones are reported with the wait time.
+- Figma rate-limits per token. `429`s with a `Retry-After` of up to 10 s are retried after exactly that wait; longer ones are reported with the wait time.
 - Rendered images come from Figma's servers and expire; they are downloaded immediately.
 - Gradients/effects that CSS or Compose can't express exactly are approximated (Compose gradients are left as a `TODO` comment with the CSS value).
 
