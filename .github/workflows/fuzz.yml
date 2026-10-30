@@ -35,4 +35,5 @@ jobs:
         run: |
           [ -n "$FUZZ_SEED" ] || unset FUZZ_SEED
           echo "iterations=$FUZZ_ITERS seed=${FUZZ_SEED:-random}"
-          bun test tests/fuzz.test.ts --config=bunfig.fuzz.toml
+          # 200k nightly runs take far longer than bun's 5 s per-test default timeout.
+          bun test tests/fuzz.test.ts --config=bunfig.fuzz.toml --timeout=600000
