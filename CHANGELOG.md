@@ -3,7 +3,34 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.2](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.2) — 2026-10-31
+
+
+### 🔧 Build & CI
+
+- One nightly (GitHub); Gitea mirrors GitHub's main and tags hourly ([`d1b0780`](https://github.com/sorinirimies/pi-figma-kit/commit/d1b0780d0f0d80b1c1022d8b75fb625e9f6397d2))
+
+### 🧹 Chores
+
+- Merge Gitea's main (both hosts ran their own nightly) ([`1d07de2`](https://github.com/sorinirimies/pi-figma-kit/commit/1d07de23efde12b61e80a2ceb84dd9d2ac49676d))
 ## [0.3.1](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.1) — 2026-10-31
+
+
+### 🔧 Build & CI
+
+- **deps:** Bump hustcer/setup-nu from 3.28 to 3.29 (#2) ([`8380cdd`](https://github.com/sorinirimies/pi-figma-kit/commit/8380cddd5bab924c67cae2137da75f4cebe23b09))
+- **deps:** Bump taiki-e/install-action from 2.87.29 to 2.87.31 (#1) ([`fa25965`](https://github.com/sorinirimies/pi-figma-kit/commit/fa25965abc2dd8f0857855cc9a6e60d795dff833))
+- **deps-dev:** Pin undici 8.12.3 via overrides ([`96b3c86`](https://github.com/sorinirimies/pi-figma-kit/commit/96b3c868ee3c06a9ab967917c90a131a41fcdb39))
+- Restore the steps of the GitHub test job (lost when the timezone matrix was dropped) ([`48f7dab`](https://github.com/sorinirimies/pi-figma-kit/commit/48f7dab43f9a796511c80653118c193d194128cc))
+- Give the nightly fuzz run a long per-test timeout (200k runs exceeded bun's 5 s default) ([`598ca81`](https://github.com/sorinirimies/pi-figma-kit/commit/598ca8163d16538040eda484a8ce3c10ef02d1cf))
+- Keep .gitea workflow actions up to date; auto-merge needs GH_PAT for action bumps ([`7711188`](https://github.com/sorinirimies/pi-figma-kit/commit/7711188ba1702d91bd4c08bdca67b0bc70917359))
+- **deps:** Bump Gitea workflow actions ([`3c6ff78`](https://github.com/sorinirimies/pi-figma-kit/commit/3c6ff784c69a0c965bfa2552d283287f21914c8e))
+
+### 🧹 Chores
+
+- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`e1ada7c`](https://github.com/sorinirimies/pi-figma-kit/commit/e1ada7cc13d5334c0159f5bf866988bca8e2d7d9))
+- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`2ac4df9`](https://github.com/sorinirimies/pi-figma-kit/commit/2ac4df91e48e6d2b30b7848387f7ae5bb258d792))
+## [0.3.0](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.0) — 2026-10-30
 
 
 ### ✨ Features
@@ -31,20 +58,12 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 ### 🔧 Build & CI
 
 - **deps:** Arrow-resilience-kit ^0.10.0 from npm (was a local link) ([`76d8166`](https://github.com/sorinirimies/pi-figma-kit/commit/76d81667a55378c0b9d9ff0bca358ebb58106fd8))
-- **deps:** Bump hustcer/setup-nu from 3.28 to 3.29 (#2) ([`8380cdd`](https://github.com/sorinirimies/pi-figma-kit/commit/8380cddd5bab924c67cae2137da75f4cebe23b09))
-- **deps:** Bump taiki-e/install-action from 2.87.29 to 2.87.31 (#1) ([`fa25965`](https://github.com/sorinirimies/pi-figma-kit/commit/fa25965abc2dd8f0857855cc9a6e60d795dff833))
-- **deps-dev:** Pin undici 8.12.3 via overrides ([`96b3c86`](https://github.com/sorinirimies/pi-figma-kit/commit/96b3c868ee3c06a9ab967917c90a131a41fcdb39))
-- Restore the steps of the GitHub test job (lost when the timezone matrix was dropped) ([`48f7dab`](https://github.com/sorinirimies/pi-figma-kit/commit/48f7dab43f9a796511c80653118c193d194128cc))
-- Give the nightly fuzz run a long per-test timeout (200k runs exceeded bun's 5 s default) ([`598ca81`](https://github.com/sorinirimies/pi-figma-kit/commit/598ca8163d16538040eda484a8ce3c10ef02d1cf))
-- Keep .gitea workflow actions up to date; auto-merge needs GH_PAT for action bumps ([`7711188`](https://github.com/sorinirimies/pi-figma-kit/commit/7711188ba1702d91bd4c08bdca67b0bc70917359))
-- **deps:** Bump Gitea workflow actions ([`3c6ff78`](https://github.com/sorinirimies/pi-figma-kit/commit/3c6ff784c69a0c965bfa2552d283287f21914c8e))
 
 ### 🧹 Chores
 
 - Nightly dev-tooling lockfile update 2026-10-27 (not released) ([`ccb2e23`](https://github.com/sorinirimies/pi-figma-kit/commit/ccb2e230b7906dd2366b0ab0cef6d9d8ed688e02))
 - Nightly dev-tooling lockfile update 2026-10-29 (not released) ([`bcf045d`](https://github.com/sorinirimies/pi-figma-kit/commit/bcf045d021506d9d8a895953ddfb555cd1cd7a0b))
 - Nightly dev-tooling lockfile update 2026-10-30 (not released) ([`1f22bb1`](https://github.com/sorinirimies/pi-figma-kit/commit/1f22bb1235440205d4bbb2f0c19b71c58d5f2af4))
-- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`2ac4df9`](https://github.com/sorinirimies/pi-figma-kit/commit/2ac4df91e48e6d2b30b7848387f7ae5bb258d792))
 ## [0.2.1](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.2.1) — 2026-10-26
 
 
