@@ -322,6 +322,7 @@ CI scripts are [nushell](https://www.nushell.sh) (`scripts/`), the same ones loc
 | **Fuzz** | nightly, and when extensions change | 200 000 seeded iterations per property |
 | **Security** | nightly, and when dependencies change | `bun audit` |
 | **Nightly Dependency Update** | every night | `bun update` within ranges, verify, commit `chore(deps)`, then build, tag and publish a patch when something changed |
+| **Mirror GitHub** (Gitea) | hourly | Gitea has no nightly of its own: fast-forwards its `main` to GitHub's and pushes the new tags (starting Gitea's release for each), so the hosts never diverge; fails loudly if they did |
 | **Release** | tag `vX.Y.Z` | validates the tag against `package.json`, runs the gate, `npm publish` (idempotent, with provenance), creates the release |
 
 Manual release: `just release patch` (or `minor` / `major` / `X.Y.Z`); `just release-all patch` pushes to every remote.
