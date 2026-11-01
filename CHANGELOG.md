@@ -3,6 +3,13 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.3](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.3) — 2026-11-01
+
+
+### 🔧 Build & CI
+
+- Fuzz and Security workflows on GitHub and Gitea ([`de65ebe`](https://github.com/sorinirimies/pi-figma-kit/commit/de65ebecef841f4d8b16a6200ae10da4b14895e8))
+- **deps-dev:** Pin minimatch 11.0.3 via overrides ([`8e2e5f6`](https://github.com/sorinirimies/pi-figma-kit/commit/8e2e5f6c02decdb262a3056cbb5c2eff1349a8b3))
 ## [0.3.2](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.2) — 2026-10-31
 
 
@@ -12,6 +19,7 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 
 ### 🧹 Chores
 
+- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`e1ada7c`](https://github.com/sorinirimies/pi-figma-kit/commit/e1ada7cc13d5334c0159f5bf866988bca8e2d7d9))
 - Merge Gitea's main (both hosts ran their own nightly) ([`1d07de2`](https://github.com/sorinirimies/pi-figma-kit/commit/1d07de23efde12b61e80a2ceb84dd9d2ac49676d))
 ## [0.3.1](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.1) — 2026-10-31
 
@@ -28,7 +36,6 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 
 ### 🧹 Chores
 
-- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`e1ada7c`](https://github.com/sorinirimies/pi-figma-kit/commit/e1ada7cc13d5334c0159f5bf866988bca8e2d7d9))
 - Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`2ac4df9`](https://github.com/sorinirimies/pi-figma-kit/commit/2ac4df91e48e6d2b30b7848387f7ae5bb258d792))
 ## [0.3.0](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.0) — 2026-10-30
 
