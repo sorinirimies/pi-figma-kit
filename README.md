@@ -4,6 +4,8 @@
 [![npm downloads](https://img.shields.io/npm/dm/pi-figma-kit.svg)](https://www.npmjs.com/package/pi-figma-kit)
 [![CI](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Audit](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/security.yml/badge.svg)](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/security.yml)
+[![Fuzz](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/fuzz.yml/badge.svg)](https://github.com/sorinirimies/pi-figma-kit/actions/workflows/fuzz.yml)
 
 Figma for [pi](https://github.com/earendil-works/pi-coding-agent): **35 `figma_*` tools** and a `/figma` command that let the agent explore your Figma files, read designs as compact CSS-annotated trees, look at renders, export assets and design tokens, and generate **HTML / React / Tailwind / Jetpack Compose** scaffolds. You can also browse your teams, projects and files from inside pi.
 
