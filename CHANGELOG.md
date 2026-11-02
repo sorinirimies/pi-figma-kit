@@ -3,6 +3,25 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.5](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.5) — 2026-11-02
+
+
+### 🐛 Fixes
+
+- **ci:** A 409 from the other host publishing the same version first is not a failure ([`0a3af5f`](https://github.com/sorinirimies/pi-figma-kit/commit/0a3af5fe5310fa140ae01daefca35f2a7d5ef0e8))
+
+### 📚 Docs
+
+- **readme:** Add the Audit and Fuzz badges ([`21433f3`](https://github.com/sorinirimies/pi-figma-kit/commit/21433f3773a5cdad66aac8a9f1143d301d5f9802))
+
+### 🔧 Build & CI
+
+- Cut a release from the Release workflow (bump, changelog, tag, push, publish) ([`42684a4`](https://github.com/sorinirimies/pi-figma-kit/commit/42684a4f7dc2448a14c12504939c09ca23fcfd77))
+- **deps:** Bump taiki-e/install-action from 2.87.31 to 2.88.1 (#3) ([`58b8412`](https://github.com/sorinirimies/pi-figma-kit/commit/58b8412f545befed94e7a7ea6a536f6ef46372dd))
+
+### 🧹 Chores
+
+- Ignore .codegraph index ([`6442bb0`](https://github.com/sorinirimies/pi-figma-kit/commit/6442bb032b8f7ce2d2da328f522e3e1abaa73f86))
 ## [0.3.4](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.4) — 2026-11-01
 
 
@@ -25,6 +44,7 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 
 ### 🧹 Chores
 
+- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`e1ada7c`](https://github.com/sorinirimies/pi-figma-kit/commit/e1ada7cc13d5334c0159f5bf866988bca8e2d7d9))
 - Merge Gitea's main (both hosts ran their own nightly) ([`1d07de2`](https://github.com/sorinirimies/pi-figma-kit/commit/1d07de23efde12b61e80a2ceb84dd9d2ac49676d))
 ## [0.3.1](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.1) — 2026-10-31
 
@@ -41,7 +61,6 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 
 ### 🧹 Chores
 
-- Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`e1ada7c`](https://github.com/sorinirimies/pi-figma-kit/commit/e1ada7cc13d5334c0159f5bf866988bca8e2d7d9))
 - Nightly dev-tooling lockfile update 2026-10-31 (not released) ([`2ac4df9`](https://github.com/sorinirimies/pi-figma-kit/commit/2ac4df91e48e6d2b30b7848387f7ae5bb258d792))
 ## [0.3.0](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.0) — 2026-10-30
 
