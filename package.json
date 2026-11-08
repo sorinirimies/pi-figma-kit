@@ -41,9 +41,10 @@
     "minimatch": "11.0.3"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "^1.4.0",
-    "@earendil-works/pi-coding-agent": "^1.4.0",
+    "@earendil-works/pi-ai": "^1.5.0",
+    "@earendil-works/pi-coding-agent": "^1.5.0",
     "@types/bun": "^1.4.4",
+    "typebox": "^1.3.27",
     "typescript": "^7.0.2"
   },
   "repository": {

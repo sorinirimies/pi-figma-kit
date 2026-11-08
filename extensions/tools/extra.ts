@@ -1,6 +1,7 @@
 /** Everything else the Figma REST API offers that is useful from an agent: meta, tokens export, flows, text, dev resources, comments admin. */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { StringEnum, Type } from "@earendil-works/pi-ai";
+import { StringEnum } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { collectFlows, renderFlows } from "../design/flows.ts";
 import { fromStyles, fromVariables, toCss, toJson, toTailwind, type TokenSet } from "../design/tokens.ts";
 import { type Ctx, FILE, NODE_IDS, confirmWrite, fetchNodes, nodeUrl, summarizeVariablesBody, target, text } from "./util.ts";

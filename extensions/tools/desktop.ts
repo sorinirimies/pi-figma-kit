@@ -1,6 +1,6 @@
 /** Bridge to the Figma desktop app's MCP server: live selection, Dev Mode code, Code Connect. */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import type { McpClient, McpResult } from "../core/mcp.ts";
 import { clip } from "./util.ts";
 

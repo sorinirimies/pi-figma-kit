@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { type FigmaClient, FigmaError } from "../core/api.ts";
 import { type VarNames, hasBoundVariables } from "../design/bindings.ts";
 import type { McpClient } from "../core/mcp.ts";

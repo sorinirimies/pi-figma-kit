@@ -1,6 +1,6 @@
 /** Account/project browsing + collaboration (comments, versions). */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { parseFigmaRef } from "../core/url.ts";
 import { simplify } from "../design/simplify.ts";
 import { diffTrees } from "../design/treediff.ts";

@@ -1,6 +1,7 @@
 /** Read/explore tools: structure, design context, code generation, search. */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { StringEnum, Type } from "@earendil-works/pi-ai";
+import { StringEnum } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { type Framework, generate } from "../design/codegen.ts";
 import { generateCompose } from "../design/compose.ts";
 import { type DNode, collectAssets, countNodes, outline, simplify } from "../design/simplify.ts";

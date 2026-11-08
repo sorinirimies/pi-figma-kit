@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { StringEnum, Type } from "@earendil-works/pi-ai";
+import { StringEnum } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { slug } from "../design/codegen.ts";
 import { diffImages } from "../design/diff.ts";
 import { decodePng, encodePng, isPng } from "../design/png.ts";
@@ -62,7 +63,7 @@ export function assetTools({ client }: Ctx) {
 		async execute(_id, p, _s, _u, ctx) {
 			const { ref, ids } = target(p.file, p.node_ids);
 			if (!ids.length) throw new Error("No node id. Pass node_ids or a URL with ?node-id=.");
-			const format = p.format ?? "png";
+			const format = String(p.format ?? "png");
 			const urls = await render(client, ref.key, ids, format, p.scale);
 			const dir = resolveDir(ctx.cwd, p.dir, join(tmpdir(), "pi-figma", ref.key));
 			const saved = await mapLimit(ids, PARALLEL, async (id) => {
@@ -99,7 +100,7 @@ export function assetTools({ client }: Ctx) {
 		}),
 		async execute(_id, p, _s, _u, ctx) {
 			const { ref } = target(p.file);
-			const format = p.format ?? "svg";
+			const format = String(p.format ?? "svg");
 			const items = p.assets.map((a) => ({ ...a, node_id: target(ref.key, [a.node_id]).ids[0]! }));
 			const urls = await render(client, ref.key, items.map((a) => a.node_id), format, p.scale);
 			const dir = resolveDir(ctx.cwd, p.dir, "assets");

@@ -1,6 +1,6 @@
 /** Design-system data: variables (tokens), styles, components. */
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { color, fillCss, textCss, cssString } from "../design/css.ts";
 import { type Ctx, FILE, fetchNodes, nodeUrl, target, text } from "./util.ts";
 
