@@ -3,6 +3,16 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.6](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.6) — 2026-11-09
+
+
+### 🐛 Fixes
+
+- Import Type from typebox (pi-ai 1.5 no longer re-exports it) ([`3f39df3`](https://github.com/sorinirimies/pi-figma-kit/commit/3f39df324a16cfa6e0a0b76ad23f9e5a874759d3))
+
+### 🔧 Build & CI
+
+- **deps:** Bump Gitea workflow actions ([`1588390`](https://github.com/sorinirimies/pi-figma-kit/commit/1588390e103e9eebc1652f672c37103dc41ce3f0))
 ## [0.3.5](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.5) — 2026-11-02
 
 
