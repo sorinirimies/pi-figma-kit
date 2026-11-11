@@ -3,6 +3,16 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.7](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.7) — 2026-11-11
+
+
+### 🔧 Build & CI
+
+- **deps:** Bump Gitea workflow actions ([`3a5e21c`](https://github.com/sorinirimies/pi-figma-kit/commit/3a5e21c96e2555d1cc61bc7680659877f1fc131e))
+
+### 🧹 Chores
+
+- Nightly dev-tooling lockfile update 2026-11-10 (not released) ([`e87a798`](https://github.com/sorinirimies/pi-figma-kit/commit/e87a7983ac8be9b9a9dd267182eba22de9b2fecc))
 ## [0.3.6](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.6) — 2026-11-09
 
 
