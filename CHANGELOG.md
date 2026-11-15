@@ -3,6 +3,12 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.9](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.9) — 2026-11-15
+
+
+### 🧹 Chores
+
+- Nightly dev-tooling lockfile update 2026-11-13 (not released) ([`d0a069c`](https://github.com/sorinirimies/pi-figma-kit/commit/d0a069c29d29cfde4125795f029ea5c25b522647))
 ## [0.3.7](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.7) — 2026-11-11
 
 
