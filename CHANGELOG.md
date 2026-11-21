@@ -3,6 +3,19 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.10](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.10) — 2026-11-21
+
+
+### 🔧 Build & CI
+
+- **deps:** Bump hustcer/setup-nu from 3.29 to 3.30 (#5) ([`ba69fbe`](https://github.com/sorinirimies/pi-figma-kit/commit/ba69fbee507398f10e1c30e42a53fed4460865ca))
+- **deps:** Bump Gitea workflow actions ([`3aaf588`](https://github.com/sorinirimies/pi-figma-kit/commit/3aaf588bd89099ffa0b8688b609925ec942150c3))
+
+### 🧹 Chores
+
+- Nightly dev-tooling lockfile update 2026-11-17 (not released) ([`7aa3932`](https://github.com/sorinirimies/pi-figma-kit/commit/7aa39322ed52c746244a03eedceddcc51224b529))
+- Nightly dev-tooling lockfile update 2026-11-18 (not released) ([`24b9289`](https://github.com/sorinirimies/pi-figma-kit/commit/24b9289b02df56c2a8687a07b729fde559d23993))
+- Nightly dev-tooling lockfile update 2026-11-20 (not released) ([`7101543`](https://github.com/sorinirimies/pi-figma-kit/commit/71015430553215566a74f90e20c1dd9346a411e7))
 ## [0.3.9](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.9) — 2026-11-15
 
 
