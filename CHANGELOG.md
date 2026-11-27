@@ -3,6 +3,22 @@
 Generated from [Conventional Commits](https://www.conventionalcommits.org) by
 [git-cliff](https://git-cliff.org). Do not edit by hand.
 
+## [0.3.11](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.11) — 2026-11-27
+
+
+### 🔧 Build & CI
+
+- **deps:** Bump taiki-e/install-action from 2.88.1 to 2.90.6 (#7) ([`ec1e182`](https://github.com/sorinirimies/pi-figma-kit/commit/ec1e182c996e395eb3bd89d3179acccbb43f28ac))
+- **deps:** Bump Gitea workflow actions ([`b3bafd5`](https://github.com/sorinirimies/pi-figma-kit/commit/b3bafd537217ea1daa7245c8c35aac6fb8a3a909))
+- **deps:** Open an issue when the nightly fails; fix header comment ([`cbdd716`](https://github.com/sorinirimies/pi-figma-kit/commit/cbdd71618011d7c9549b16d32f6d6ac7a42a17b3))
+- **deps:** Move the nightly failure notice into scripts/ci/notify_failure.nu ([`04c3526`](https://github.com/sorinirimies/pi-figma-kit/commit/04c352649e7ff03fe11511c1be15acfffb231986))
+
+### 🧹 Chores
+
+- Nightly dev-tooling lockfile update 2026-11-22 (not released) ([`e852d3e`](https://github.com/sorinirimies/pi-figma-kit/commit/e852d3e770bbc725afc7b278212a47a82e83a53a))
+- Nightly dev-tooling lockfile update 2026-11-24 (not released) ([`14bb28c`](https://github.com/sorinirimies/pi-figma-kit/commit/14bb28ca41bd441ece9f35da0d1a951f06a713dd))
+- Nightly dev-tooling lockfile update 2026-11-25 (not released) ([`c9cb149`](https://github.com/sorinirimies/pi-figma-kit/commit/c9cb1494bd17524149fe5c4c3b78955b1f572498))
+- Nightly dev-tooling lockfile update 2026-11-26 (not released) ([`1b921a2`](https://github.com/sorinirimies/pi-figma-kit/commit/1b921a20fc96be92400cd005f1461f31fa289bf9))
 ## [0.3.10](https://github.com/sorinirimies/pi-figma-kit/releases/tag/v0.3.10) — 2026-11-21
 
 
