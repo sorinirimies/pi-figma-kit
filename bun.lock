@@ -5,7 +5,7 @@
     "": {
       "name": "pi-figma-kit",
       "dependencies": {
-        "arrow-resilience-kit": "^0.10.9",
+        "arrow-resilience-kit": "^0.10.10",
       },
       "devDependencies": {
         "@earendil-works/pi-ai": "^1.6.1",
@@ -169,7 +169,7 @@
 
     "agent-base": ["agent-base@9.0.0", "", {}, "sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA=="],
 
-    "arrow-resilience-kit": ["arrow-resilience-kit@0.10.9", "", {}, "sha512-fujQqynQvK854tbnZPHK+Matn59HwbTUXTM7OK/AqD1/ootmMTTdyjZ8VrUkk4AC7T6AEi5n8R02ydjfnET1Ag=="],
+    "arrow-resilience-kit": ["arrow-resilience-kit@0.10.10", "", {}, "sha512-NBlsQMAYg/CdKcM/+mccXonnX81xUfIQHjPBzxB+3KdpY+CEfiBJd2kFj0JnGjmEILhxJSNv083+rOqO4zOEmg=="],
 
     "balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
 
